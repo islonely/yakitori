@@ -37,11 +37,13 @@ struct SettingsView: View {
 
     private var generalSection: some View {
         settingsCard("General") {
-            Toggle("Launch at Login", isOn: binding(\.launchAtLogin))
-                .onChange(of: state.settings.launchAtLogin) { newValue in
-                    state.container.permissionProvider.request(.launchAtLogin)
+            Toggle("Launch at Login", isOn: Binding(
+                get: { state.settings.launchAtLogin },
+                set: { newValue in
+                    state.container.permissionProvider.setLaunchAtLogin(newValue)
                     state.updateSettings { $0.launchAtLogin = newValue }
                 }
+            ))
             Toggle("Start tracking at launch", isOn: binding(\.startTrackingAtLaunch))
             Toggle("Show word count in menu bar", isOn: binding(\.menuBarShowsWordCount))
             Picker("Appearance", selection: binding(\.appearance)) {

@@ -66,6 +66,7 @@ public protocol PermissionProviding: AnyObject {
     func allStatuses() -> [PermissionStatus]
     func request(_ kind: PermissionKind)
     func openSystemSettings(for kind: PermissionKind)
+    func setLaunchAtLogin(_ enabled: Bool)
     func refresh()
 }
 
@@ -255,5 +256,6 @@ public final class MockPermissionManager: PermissionProviding {
     }
 
     public func openSystemSettings(for kind: PermissionKind) {}
+    public func setLaunchAtLogin(_ enabled: Bool) {}
     public func refresh() {}
 }

@@ -58,6 +58,20 @@ final class DailyAggregateBuilderTests: XCTestCase {
         XCTAssertEqual(total, 7200, accuracy: 1.0)
     }
 
+    func testZeroActivityRecoveredSessionProducesNoAggregate() {
+        let calendar = TestSupport.calendar("America/New_York")
+        let start = TestSupport.date("2026-09-08T10:00:00-04:00")
+        let recovered = Session(
+            startedAt: start,
+            endedAt: start,
+            activeSeconds: 0,
+            focusSeconds: 0,
+            isRecovered: true
+        )
+        let aggregates = DailyAggregateBuilder(calendar: calendar).aggregates(for: [recovered])
+        XCTAssertTrue(aggregates.isEmpty)
+    }
+
     func testNetWordsAggregatedWithAddedAndRemovedSeparated() {
         let calendar = TestSupport.calendar("America/New_York")
         let start = TestSupport.date("2026-09-08T10:00:00-04:00")

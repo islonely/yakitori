@@ -7,7 +7,11 @@ struct MenuBarLabel: View {
 
     var body: some View {
         if state.settings.menuBarShowsWordCount {
-            Image(systemName: "square.and.pencil")
+            Label {
+                Text(Format.compact(state.tracking.todayNetWords))
+            } icon: {
+                Image(systemName: "square.and.pencil")
+            }
         } else {
             Image(systemName: "square.and.pencil")
         }

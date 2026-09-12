@@ -38,6 +38,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
         UNUserNotificationCenter.current().delegate = self
+
+        // Headless diagnostic mode: `WritingTracker --diagnostics [--probe-word]`
+        if ProcessInfo.processInfo.arguments.contains("--diagnostics") {
+            let container = AppState.shared.container
+            let diagnostics = DiagnosticsService(
+                database: container.database,
+                permissionProvider: container.permissionProvider
+            )
+            let probe = ProcessInfo.processInfo.arguments.contains("--probe-word")
+            print(diagnostics.jsonString(probeWord: probe))
+            exit(0)
+        }
+
         AppState.shared.start()
     }
 

@@ -15,6 +15,14 @@ public struct DailyAggregateBuilder {
         var buckets: [String: MutableAggregate] = [:]
 
         for session in sessions {
+            // Ignore zero-activity artifacts (e.g. sessions recovered after a crash).
+            let hasActivity = session.activeSeconds > 0
+                || session.focusSeconds > 0
+                || (session.netWordChange ?? 0) != 0
+                || !session.activeRanges.isEmpty
+                || !session.focusRanges.isEmpty
+            guard hasActivity else { continue }
+
             let sessionEnd = session.endedAt ?? session.startedAt
             let days = Set(
                 calendar.days(from: session.startedAt, through: sessionEnd).map { calendar.dayKey(for: $0) }
