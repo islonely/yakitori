@@ -39,8 +39,8 @@ public final class SessionRepository {
         try database.execute("""
         INSERT INTO sessions (id, project_id, document_id, application_id, started_at, ended_at,
             active_seconds, focus_seconds, starting_word_count, ending_word_count, words_added,
-            words_removed, net_word_change, session_type, notes, word_count_source, active_ranges, focus_ranges, is_recovered)
-        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?);
+            words_removed, net_word_change, session_type, notes, active_ranges, focus_ranges, is_recovered)
+        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?);
         """, Self.params(session))
     }
 
@@ -48,8 +48,8 @@ public final class SessionRepository {
         try database.execute("""
         UPDATE sessions SET project_id=?, document_id=?, application_id=?, started_at=?, ended_at=?,
             active_seconds=?, focus_seconds=?, starting_word_count=?, ending_word_count=?, words_added=?,
-            words_removed=?, net_word_change=?, session_type=?, notes=?, word_count_source=?, active_ranges=?,
-            focus_ranges=?, is_recovered=? WHERE id=?;
+            words_removed=?, net_word_change=?, session_type=?, notes=?, active_ranges=?, focus_ranges=?,
+            is_recovered=? WHERE id=?;
         """, Array(Self.params(session).dropFirst()) + [.text(session.id)])
     }
 
@@ -159,7 +159,6 @@ public final class SessionRepository {
             session.netWordChange.map { .integer(Int64($0)) } ?? .null,
             .text(session.sessionType.rawValue),
             session.notes.map { .text($0) } ?? .null,
-            .text(session.wordCountSource.rawValue),
             .text(JSONCoding.encode(session.activeRanges)),
             .text(JSONCoding.encode(session.focusRanges)),
             .bool(session.isRecovered)
@@ -183,7 +182,6 @@ public final class SessionRepository {
             netWordChange: row.int("net_word_change"),
             sessionType: SessionType(rawValue: row.string("session_type") ?? "unknown") ?? .unknown,
             notes: row.string("notes"),
-            wordCountSource: WordCountSource(rawValue: row.string("word_count_source") ?? "none") ?? .none,
             activeRanges: JSONCoding.decode([TimeRange].self, from: row.string("active_ranges")) ?? [],
             focusRanges: JSONCoding.decode([TimeRange].self, from: row.string("focus_ranges")) ?? [],
             isRecovered: row.bool("is_recovered") ?? false

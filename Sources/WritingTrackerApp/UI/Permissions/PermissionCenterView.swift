@@ -5,7 +5,7 @@ struct PermissionCenterView: View {
     @EnvironmentObject private var state: AppState
 
     private let explanations: [PermissionKind: String] = [
-        .accessibility: "Lets Writing Tracker detect that you are active while another app is frontmost. Only activity timestamps are kept. For apps without a word count, typed characters may be briefly buffered in memory during a session to estimate words, then discarded when the session ends.",
+        .accessibility: "Lets Writing Tracker detect that you are active while another app is frontmost. Only activity timestamps are recorded; what you type is never saved.",
         .wordAutomation: "Lets Writing Tracker ask Microsoft Word for the active document and word count. Word is only queried while you use it.",
         .fileAccess: "Only used for files or folders you explicitly select. Full Disk Access is never requested.",
         .notifications: "Used to deliver goal, streak, and milestone notifications. Optional.",

@@ -179,8 +179,6 @@ public struct Session: Codable, Identifiable, Hashable, Sendable {
     public var netWordChange: Int?
     public var sessionType: SessionType
     public var notes: String?
-    /// Provenance of the word-count figures. Estimated values must be labelled.
-    public var wordCountSource: WordCountSource
     /// Exact activity ranges, used for accurate per-day aggregation and timezone/DST correctness.
     public var activeRanges: [TimeRange]
     public var focusRanges: [TimeRange]
@@ -202,7 +200,6 @@ public struct Session: Codable, Identifiable, Hashable, Sendable {
         netWordChange: Int? = nil,
         sessionType: SessionType = .unknown,
         notes: String? = nil,
-        wordCountSource: WordCountSource = .none,
         activeRanges: [TimeRange] = [],
         focusRanges: [TimeRange] = [],
         isRecovered: Bool = false
@@ -222,7 +219,6 @@ public struct Session: Codable, Identifiable, Hashable, Sendable {
         self.netWordChange = netWordChange
         self.sessionType = sessionType
         self.notes = notes
-        self.wordCountSource = wordCountSource
         self.activeRanges = activeRanges
         self.focusRanges = focusRanges
         self.isRecovered = isRecovered

@@ -6,6 +6,8 @@ public final class ProjectService {
     private let documentRepository: DocumentRepository
     private let milestoneRepository: MilestoneRepository
     private let ruleRepository: AssociationRuleRepository
+    private let snapshotRepository: WordCountSnapshotRepository
+    private let sessionRepository: SessionRepository
 
     public init(database: Database) {
         self.database = database
@@ -13,6 +15,8 @@ public final class ProjectService {
         self.documentRepository = DocumentRepository(database: database)
         self.milestoneRepository = MilestoneRepository(database: database)
         self.ruleRepository = AssociationRuleRepository(database: database)
+        self.snapshotRepository = WordCountSnapshotRepository(database: database)
+        self.sessionRepository = SessionRepository(database: database)
     }
 
     // MARK: - Projects
@@ -87,8 +91,17 @@ public final class ProjectService {
     /// Recomputes a project's current word count from the latest snapshot or,
     /// failing that, from its starting count plus the net change of its sessions.
     public func recalculateCurrentWordCount(projectID: String) throws {
-        guard try projectRepository.find(id: projectID) != nil else { return }
-        ProjectWordCountCalculator.recompute(projectID: projectID, database: database)
+        guard var project = try projectRepository.find(id: projectID) else { return }
+        let snapshots = try snapshotRepository.snapshots(forProject: projectID)
+        if let latest = snapshots.last {
+            project.currentWordCount = latest.wordCount
+        } else {
+            let sessions = try sessionRepository.sessions(forProject: projectID)
+            let net = sessions.filter { $0.endedAt != nil }.reduce(0) { $0 + ($1.netWordChange ?? 0) }
+            project.currentWordCount = project.startingWordCount + net
+        }
+        try projectRepository.update(project)
+        try evaluateMilestones(projectID: projectID, currentWordCount: project.currentWordCount)
     }
 
     // MARK: - Milestones

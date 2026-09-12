@@ -103,32 +103,8 @@ public enum SessionType: String, Codable, CaseIterable, Identifiable, Sendable {
     }
 }
 
-// MARK: - Word count provenance
-
-/// Where a session's word-count figures came from.
-public enum WordCountSource: String, Codable, CaseIterable, Sendable {
-    /// No word-count information was available.
-    case none
-    /// Authoritative count reported by the writing application's adapter.
-    case nativeAdapter
-    /// Estimated from a session-scoped, in-memory keystroke buffer.
-    case keystrokeEstimate
-    /// Entered by the user.
-    case manual
-
-    public var displayName: String {
-        switch self {
-        case .none: return "Unavailable"
-        case .nativeAdapter: return "From application"
-        case .keystrokeEstimate: return "Estimated from typing"
-        case .manual: return "Manual entry"
-        }
-    }
-
-    public var isEstimated: Bool { self == .keystrokeEstimate }
-}
-
 // MARK: - Activity events
+
 public enum ActivityEventType: String, Codable, CaseIterable, Sendable {
     case applicationFocused
     case applicationUnfocused

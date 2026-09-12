@@ -225,33 +225,3 @@ fix: handle application termination
 test: add migration coverage
 refactor: separate tracking service from UI
 docs: update setup instructions
-
----
-
-## 11. Transient Keystroke Buffer Policy
-
-This project permits one narrow exception to the "never handle typed content"
-rule, so that word counts remain useful in writing applications that do not
-expose a native word count.
-
-**Permitted:** a session-scoped, in-memory buffer of typed characters used only
-to estimate `wordsAdded`, `wordsRemoved` and `netWordChange`, including deletion
-operations (backspace, option+delete, cmd+delete, forward delete).
-
-**Strict constraints — do not relax these:**
-
-1. The buffer lives **only in memory**. Never write it to the database, logs,
-   exports, diagnostics, telemetry, crash reports, or any file.
-2. It is created when a session starts and destroyed when the session ends,
-   when tracking stops, or when the application terminates.
-3. It is never populated while Secure Input is active (e.g. password fields)
-   and must be cleared if Secure Input becomes active.
-4. It is used only when the active application's adapter does not provide a
-   native word count. Native counts always take precedence.
-5. Derived counts are clearly labelled as estimates in the data model and UI.
-   Never present an estimate as exact.
-6. The feature is disclosed to the user and can be disabled.
-
-The prohibition on reading the clipboard, taking screenshots, requiring Full
-Disk Access, and logging manuscript content is unchanged. When in doubt, prefer
-privacy over precision.

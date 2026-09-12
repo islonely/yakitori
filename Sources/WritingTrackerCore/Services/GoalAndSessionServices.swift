@@ -56,11 +56,17 @@ public final class GoalService {
 public final class SessionService {
     private let database: Database
     private let sessionRepository: SessionRepository
+    private let projectRepository: ProjectRepository
+    private let documentRepository: DocumentRepository
+    private let snapshotRepository: WordCountSnapshotRepository
     private let statistics: StatisticsService
 
     public init(database: Database, statistics: StatisticsService) {
         self.database = database
         self.sessionRepository = SessionRepository(database: database)
+        self.projectRepository = ProjectRepository(database: database)
+        self.documentRepository = DocumentRepository(database: database)
+        self.snapshotRepository = WordCountSnapshotRepository(database: database)
         self.statistics = statistics
     }
 
@@ -169,7 +175,6 @@ public final class SessionService {
             netWordChange: words,
             sessionType: sessionType,
             notes: notes,
-            wordCountSource: .manual,
             activeRanges: activeSeconds > 0 ? [TimeRange(start: start, end: end)] : [],
             focusRanges: [],
             isRecovered: false
@@ -185,8 +190,28 @@ public final class SessionService {
     /// the net change of its sessions. This keeps project goals and milestones in
     /// sync after manual entries, edits, assignments and deletions.
     public func refreshProjectWordCount(projectID: String?) {
-        guard let projectID else { return }
-        ProjectWordCountCalculator.recompute(projectID: projectID, database: database)
+        guard let projectID, var project = try? projectRepository.find(id: projectID) else { return }
+        let snapshots = (try? snapshotRepository.snapshots(forProject: projectID)) ?? []
+        if let latest = snapshots.last {
+            project.currentWordCount = latest.wordCount
+        } else {
+            let sessions = (try? sessionRepository.sessions(forProject: projectID)) ?? []
+            let net = sessions.filter { $0.endedAt != nil }.reduce(0) { $0 + ($1.netWordChange ?? 0) }
+            project.currentWordCount = project.startingWordCount + net
+        }
+        try? projectRepository.update(project)
+        evaluateMilestones(projectID: projectID, currentWordCount: project.currentWordCount)
+    }
+
+    private func evaluateMilestones(projectID: String, currentWordCount: Int) {
+        let repository = MilestoneRepository(database: database)
+        let milestones = (try? repository.milestones(forProject: projectID)) ?? []
+        for var milestone in milestones where milestone.metric == .words && milestone.completedAt == nil {
+            if let target = milestone.targetValue, Double(currentWordCount) >= target {
+                milestone.completedAt = Date()
+                try? repository.update(milestone)
+            }
+        }
     }
 
     private func rebuildAffected(_ session: Session) throws {

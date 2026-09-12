@@ -123,9 +123,8 @@ struct SessionsView: View {
             }
             .width(min: 60, ideal: 70)
             TableColumn("Net") { session in
-                Text(netText(session))
+                Text(session.netWordChange.map { ($0 >= 0 ? "+" : "") + Format.int($0) } ?? "—")
                     .foregroundStyle((session.netWordChange ?? 0) < 0 ? .orange : .primary)
-                    .help(session.wordCountSource.displayName)
             }
             .width(min: 60, ideal: 70)
             TableColumn("WPM") { session in
@@ -142,12 +141,6 @@ struct SessionsView: View {
                 editingSession = session
             }
         }
-    }
-
-    private func netText(_ session: Session) -> String {
-        guard let net = session.netWordChange else { return "—" }
-        let formatted = (net >= 0 ? "+" : "") + Format.int(net)
-        return session.wordCountSource.isEstimated ? "~" + formatted : formatted
     }
 }
 
@@ -208,17 +201,6 @@ struct SessionDetailView: View {
                         Text("Net \(session.netWordChange.map { ($0 >= 0 ? "+" : "") + Format.int($0) } ?? "—")")
                     }
                     .foregroundStyle(.secondary)
-                }
-                GridRow {
-                    Text("Source").foregroundStyle(.secondary)
-                    HStack(spacing: 6) {
-                        Text(session.wordCountSource.displayName)
-                        if session.wordCountSource.isEstimated {
-                            Text("(approximate)")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
-                    }
                 }
             }
 

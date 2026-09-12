@@ -34,12 +34,8 @@ contains the operating rules used while building it.
 - **Full GUI**: dashboard, statistics, calendar heatmap, sessions, projects,
   goals, reports, achievements, settings and a Permission Center.
 - **CSV/JSON export**, verified database backups, and safe destructive operations.
-- **Privacy by design**: no manuscript text is stored, the clipboard and
-  screenshots are never accessed, and everything stays local. For applications
-  that do not expose a native word count, typed characters may be held in a
-  session-scoped in-memory buffer to estimate words added/removed; it is
-  discarded when the session ends and is never written to disk, logs, exports,
-  or telemetry. It is disabled during Secure Input and can be turned off.
+- **Privacy by design**: no manuscript text, keystrokes, clipboard, screenshots,
+  or cloud.
 
 ---
 
@@ -163,11 +159,8 @@ export, backup, and destructive-operation safety.
 - Additional writing-application adapters (Scrivener, Pages, Ulysses,
   LibreOffice, Obsidian, browsers) currently provide focus/activity tracking
   only; deep document/word-count integration is Word-only.
-- For apps without a native word count, `wordsAdded`/`wordsRemoved`/`netWordChange`
-  are **estimated** from a session-scoped in-memory keystroke buffer. The estimate
-  assumes text is appended at the end of the document, so it does not capture
-  pasted text, cursor moves, autocorrect, or forward deletions. Estimated values
-  are marked with `~` and a source label, and native counts always win.
+- `wordsAdded`/`wordsRemoved` are only populated for manual entries because Word
+  exposes net word count, not edit-level deltas.
 - The tracking engine runs in-process with the menu bar app (which keeps running
   when the dashboard is closed) rather than as a separate XPC/LaunchAgent.
   The engine is GUI-independent and the boundary would allow extracting it later.
