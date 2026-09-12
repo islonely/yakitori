@@ -44,3 +44,6 @@ dist/
 # Editor
 .vscode/
 .idea/
+
+# Local agent instructions (not part of the distributed source)
+AGENTS.md
