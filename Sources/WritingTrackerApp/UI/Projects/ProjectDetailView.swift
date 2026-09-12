@@ -1,5 +1,6 @@
 import SwiftUI
 import Charts
+import AppKit
 import WritingTrackerCore
 
 struct ProjectDetailView: View {
@@ -273,6 +274,13 @@ struct ProjectDetailView: View {
                 Button("Add") { addRule() }
                     .disabled(newRuleValue.trimmingCharacters(in: .whitespaces).isEmpty)
             }
+            Button {
+                chooseFolder()
+            } label: {
+                Label("Choose Folder…", systemImage: "folder")
+            }
+            Text("Choosing a folder grants access only to that folder and creates a matching rule.")
+                .font(.caption).foregroundStyle(.secondary)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .cardStyle()
@@ -319,7 +327,7 @@ struct ProjectDetailView: View {
 
     private func load() {
         project = try? state.container.projects.project(id: projectID)
-        if let project {
+        if project != nil {
             stats = try? statistics.projectStatistics(projectID: projectID)
             state.container.statistics.refreshSettings()
         }
@@ -331,7 +339,7 @@ struct ProjectDetailView: View {
     private func addMilestone() {
         let title = newMilestone.trimmingCharacters(in: .whitespaces)
         guard !title.isEmpty else { return }
-        try? state.container.projects.addMilestone(projectID: projectID, title: title, targetValue: nil, metric: nil)
+        _ = try? state.container.projects.addMilestone(projectID: projectID, title: title, targetValue: nil, metric: nil)
         newMilestone = ""
         load()
     }
@@ -349,9 +357,25 @@ struct ProjectDetailView: View {
     private func addRule() {
         let value = newRuleValue.trimmingCharacters(in: .whitespaces)
         guard !value.isEmpty else { return }
-        try? state.container.projects.addRule(projectID: projectID, type: newRuleType, value: value)
+        _ = try? state.container.projects.addRule(projectID: projectID, type: newRuleType, value: value)
         state.container.association.reload()
         newRuleValue = ""
+        load()
+    }
+
+    private func chooseFolder() {
+        let panel = NSOpenPanel()
+        panel.canChooseDirectories = true
+        panel.canChooseFiles = false
+        panel.allowsMultipleSelection = false
+        panel.prompt = "Choose"
+        panel.message = "Select a folder whose documents should belong to this project."
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        _ = FileAccessBookmarkStore.shared.add(url: url)
+        _ = try? state.container.projects.addRule(projectID: projectID, type: .folderPath, value: url.path)
+        state.container.association.reload()
+        state.container.permissionProvider.refresh()
+        state.refreshPermissions()
         load()
     }
 

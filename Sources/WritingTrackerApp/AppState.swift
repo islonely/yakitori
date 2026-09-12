@@ -36,7 +36,7 @@ final class AppState: ObservableObject {
             // Fall back to an in-memory database so the app still launches, but
             // surface the problem rather than pretending data is saved.
             let memory = try! SQLiteDatabase.inMemory()
-            try? Migrator(database: memory).migrate()
+            _ = try? Migrator(database: memory).migrate()
             return (memory, error)
         }
     }
