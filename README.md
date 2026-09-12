@@ -40,6 +40,10 @@ Time-only applications show "Word count unavailable" rather than a guess.
 
 - **Menu bar utility** that keeps tracking while the dashboard window is closed.
 - **Background tracking engine** independent of the SwiftUI layer.
+- **Only real writing is recorded**: sessions that add (or remove) no words are
+  discarded, so idle time in a writing app never inflates your history.
+- **Configurable global hotkey** to start/stop a session from anywhere (Settings →
+  Tracking).
 - **Session state machine** (`IDLE → FOCUSED → ACTIVE → PAUSED → ACTIVE → ENDED`)
   with pause/resume, inactivity timeout, sleep/wake handling and crash recovery.
 - **Frontmost application detection** and **listen-only activity monitoring**

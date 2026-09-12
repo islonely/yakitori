@@ -636,9 +636,8 @@ public final class TrackingEngine {
 
     private func persistEndedSessionLocked() {
         guard let session = stateMachine.session else { return }
-        // Discard trivial focus-only blips that contain no writing time or words.
-        let isTrivial = session.activeSeconds < 1 && session.focusSeconds < 1 && (session.netWordChange ?? 0) == 0
-        if !isTrivial {
+        // Sessions with no added words are not recorded (see SessionRecordingPolicy).
+        if SessionRecordingPolicy.shouldRecord(session) {
             try? sessionRepository.upsert(session)
             rebuildAggregatesLocked(touching: session)
         }

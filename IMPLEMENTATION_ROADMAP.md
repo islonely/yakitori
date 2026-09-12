@@ -737,6 +737,18 @@ Transitions:
 - System sleeps → pause
 - System wakes → remain paused until activity resumes
 
+### Session recording rule
+
+A session is only persisted when it represents real writing work:
+
+- For applications that report a word count, the session must have a non-zero
+  net word change (words added or removed). A session in which the manuscript did
+  not change is discarded, including manual entries that add no words.
+- For time-only applications (no word count available), a session is kept when it
+  contains meaningful active or focus time.
+
+Discarded sessions are never written to the database and never affect statistics.
+
 ---
 
 # 9. Frontmost Application Detection
@@ -1512,6 +1524,7 @@ Sections:
 - Inactivity timeout.
 - Selected applications.
 - Start automatically.
+- Global start/stop hotkey (user-configurable, optional).
 
 ### Applications
 
@@ -2260,6 +2273,32 @@ After Milestone 1 is complete:
 Do not jump ahead to Word integration before the persistence and permission architecture are in place.
 
 ---
+
+# 52A. Social, Sharing and Gamification (planned — requires a backend)
+
+The product owner wants, after 1.0:
+
+- optional **public exposure** of a writer's statistics;
+- multiple **leaderboards** (words, active time, streaks, per-period) that a
+  writer can be placed on after finishing a session;
+- **following** other writers and **comparing** statistics against them.
+
+**Status: not implemented.**
+
+This cannot be delivered by a local-only app: leaderboards and following require
+shared, networked state. It needs:
+
+1. A backend service — accounts/identity, a stats-ingestion API, leaderboard
+   queries, and follow relationships.
+2. An explicit privacy model: statistics are private by default; publishing is
+   opt-in and revocable; only aggregate numbers are shared (never documents,
+   project names, or manuscript text).
+3. A privacy/security review before any network code ships.
+
+The client is designed to accept this later: statistics are already derived from
+local records, and a `SocialBackend` protocol should sit behind any social UI so
+a server can be added **without changing views**. Until a backend exists, no
+social UI is shown as working.
 
 # 53. Final Architectural Principle
 

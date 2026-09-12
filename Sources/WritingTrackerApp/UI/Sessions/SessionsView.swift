@@ -307,16 +307,22 @@ struct ManualEntryView: View {
                 Button("Cancel") { dismiss() }
                 Button("Add") { save() }
                     .buttonStyle(.borderedProminent)
-                    .disabled(Int(words) == nil && words != "-")
+                    .disabled(wordValue == nil || wordValue == 0)
             }
+            Text("Sessions that add no words are not recorded.")
+                .font(.caption).foregroundStyle(.secondary)
         }
         .padding(24)
-        .frame(width: 460, height: 430)
+        .frame(width: 460, height: 450)
+    }
+
+    private var wordValue: Int? {
+        Int(words.trimmingCharacters(in: .whitespaces))
     }
 
     private func save() {
         let totalSeconds = Double(hours * 3600 + minutes * 60)
-        let wordCount = Int(words.trimmingCharacters(in: .whitespaces)) ?? 0
+        guard let wordCount = wordValue, wordCount != 0 else { return }
         do {
             try state.container.sessions.addManualSession(
                 projectID: projectID.isEmpty ? nil : projectID,

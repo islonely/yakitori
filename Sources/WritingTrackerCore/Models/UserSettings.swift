@@ -16,6 +16,29 @@ public enum AppAppearance: String, Codable, CaseIterable, Identifiable, Sendable
     }
 }
 
+/// A user-configurable global keyboard shortcut.
+public struct HotkeyConfiguration: Codable, Hashable, Sendable {
+    public var keyCode: UInt16
+    /// Carbon modifier mask (cmdKey | optionKey | controlKey | shiftKey).
+    public var carbonModifiers: UInt32
+    /// Human-readable form, e.g. "⌃⌥⌘S". Stored for display only.
+    public var display: String
+    public var enabled: Bool
+
+    public init(keyCode: UInt16, carbonModifiers: UInt32, display: String, enabled: Bool = true) {
+        self.keyCode = keyCode
+        self.carbonModifiers = carbonModifiers
+        self.display = display
+        self.enabled = enabled
+    }
+
+    // Carbon modifier values (see Carbon/HIToolbox/Events.h).
+    public static let modifierCommand: UInt32 = 256
+    public static let modifierShift: UInt32 = 512
+    public static let modifierOption: UInt32 = 2048
+    public static let modifierControl: UInt32 = 4096
+}
+
 /// Persisted user configuration. Stored as a single JSON document.
 public struct UserSettings: Codable, Hashable, Sendable {
     public var trackingMode: TrackingMode
@@ -38,6 +61,8 @@ public struct UserSettings: Codable, Hashable, Sendable {
     public var menuBarShowsWordCount: Bool
     public var appearance: AppAppearance
     public var automaticProjectMatching: Bool
+    /// Global shortcut to start/stop a session. Nil means disabled.
+    public var globalHotkey: HotkeyConfiguration?
     public var schemaVersion: Int
 
     public init(
@@ -61,6 +86,7 @@ public struct UserSettings: Codable, Hashable, Sendable {
         menuBarShowsWordCount: Bool = true,
         appearance: AppAppearance = .system,
         automaticProjectMatching: Bool = true,
+        globalHotkey: HotkeyConfiguration? = nil,
         schemaVersion: Int = 1
     ) {
         self.trackingMode = trackingMode
@@ -83,6 +109,7 @@ public struct UserSettings: Codable, Hashable, Sendable {
         self.menuBarShowsWordCount = menuBarShowsWordCount
         self.appearance = appearance
         self.automaticProjectMatching = automaticProjectMatching
+        self.globalHotkey = globalHotkey
         self.schemaVersion = schemaVersion
     }
 

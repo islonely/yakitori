@@ -64,6 +64,7 @@ struct SettingsView: View {
                 ForEach(SessionType.allCases, id: \.self) { Text($0.displayName).tag($0) }
             }
             Toggle("Automatically match documents to projects", isOn: binding(\.automaticProjectMatching))
+            HotkeyRecorder()
             HStack {
                 Text("Status")
                 Spacer()

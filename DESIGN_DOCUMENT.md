@@ -627,6 +627,15 @@ Application becomes active and activity resumes.
 
 User ends session.
 
+### Recording rule
+
+A completed session is only saved when it represents real writing work. For
+applications that report a word count, the session must have a non-zero net word
+change; a session where the manuscript did not change is discarded (as is a
+manual entry that adds no words). Time-only applications still record sessions
+with meaningful active or focus time. Discarded sessions never reach the database
+and never affect statistics.
+
 ---
 
 # 18. Document Detection
@@ -2406,6 +2415,27 @@ Do not make the product feel childish unless the user enables a gamification mod
 
 ---
 
+# 78A. Social Sharing, Leaderboards and Following (planned)
+
+After 1.0, writers should optionally be able to:
+
+- **Publish** a snapshot of their statistics (words, active time, streaks, and
+  similar aggregates) — private by default, opt-in, and revocable.
+- Be placed on **leaderboards** after finishing a session, across several kinds
+  (daily/weekly/monthly words, active time, streaks, project progress).
+- **Follow** other writers and **compare** their statistics against their own.
+
+**Status: not implemented.** Online leaderboards and following require a backend
+(identity, stats ingestion, leaderboard queries, follow graph) that is out of
+scope for the local-first app. The privacy model must guarantee that only
+aggregate numbers are ever shared — never documents, project names, paths, or
+manuscript text.
+
+The client is structured for this: statistics are derived from local records and
+any social surface should sit behind a `SocialBackend` protocol so a server can
+be added later without changing the UI. Until a backend exists, the social UI is
+not presented as functional.
+
 # 79. Widgets
 
 Potential macOS widgets:
@@ -3375,6 +3405,7 @@ Settings sections:
 - Inactivity timeout
 - Active application behavior
 - Session rules
+- Global start/stop hotkey (configurable, optional)
 
 ### Applications
 

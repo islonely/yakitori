@@ -149,6 +149,7 @@ public final class SessionService {
     }
 
     /// Adds a manually entered writing session (paper, another computer, offline…).
+    /// Sessions that add no words are rejected, matching the recording policy.
     @discardableResult
     public func addManualSession(
         projectID: String?,
@@ -158,6 +159,9 @@ public final class SessionService {
         sessionType: SessionType = .drafting,
         notes: String? = nil
     ) throws -> Session {
+        guard words != 0 else {
+            throw WritingTrackerError.invalidData(SessionRecordingPolicy.zeroWordRejectionMessage)
+        }
         let start = date
         let end = start.addingTimeInterval(max(0, activeSeconds))
         let session = Session(

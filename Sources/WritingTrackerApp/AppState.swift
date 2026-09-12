@@ -28,6 +28,7 @@ final class AppState: ObservableObject {
     @Published var isOnboardingPresented = false
 
     private var isStarted = false
+    private let globalHotkey = GlobalHotkey()
 
     private init() {
         let (db, didFail) = Self.makeDatabase()
@@ -88,6 +89,7 @@ final class AppState: ObservableObject {
             isOnboardingPresented = true
         }
         container.notifications.requestAuthorizationIfNeeded()
+        configureGlobalHotkey()
 
         // Re-check permissions when the user returns from System Settings.
         NotificationCenter.default.addObserver(
@@ -137,7 +139,28 @@ final class AppState: ObservableObject {
         container.saveSettings(newSettings)
         settings = container.settings
         refreshPermissions()
+        configureGlobalHotkey()
         refresh()
+    }
+
+    // MARK: - Global hotkey
+
+    private func configureGlobalHotkey() {
+        globalHotkey.unregister()
+        globalHotkey.onTrigger = nil
+        guard let config = settings.globalHotkey, config.enabled else { return }
+        globalHotkey.onTrigger = { [weak self] in
+            Task { @MainActor in self?.toggleSessionFromHotkey() }
+        }
+        _ = globalHotkey.register(keyCode: config.keyCode, carbonModifiers: config.carbonModifiers)
+    }
+
+    private func toggleSessionFromHotkey() {
+        if tracking.snapshot.isSessionOpen {
+            stopSession()
+        } else {
+            startManualSession(projectID: settings.currentProjectID, type: settings.defaultSessionType)
+        }
     }
 
     func updateSettings(_ mutate: (inout UserSettings) -> Void) {
