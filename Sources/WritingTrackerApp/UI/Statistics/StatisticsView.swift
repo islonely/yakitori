@@ -12,7 +12,7 @@ struct StatisticsView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 22) {
-                Text("Statistics").font(.largeTitle.weight(.semibold))
+                BrandHeader(title: "Statistics", subtitle: "Your writing output and patterns", symbol: "chart.bar.xaxis")
                 summaryGrid
                 dailyOutputChart
                 HStack(alignment: .top, spacing: 16) {
@@ -70,7 +70,7 @@ struct StatisticsView: View {
             SectionHeader(title: "Daily output", subtitle: range.title)
             Chart(days, id: \.dayKey) { day in
                 BarMark(x: .value("Date", day.date, unit: .day), y: .value("Words", day.netWords))
-                    .foregroundStyle(day.netWords >= 0 ? Color.accentColor : Color.orange)
+                    .foregroundStyle(day.netWords >= 0 ? Theme.accent : Color.orange)
                     .cornerRadius(2)
             }
             .frame(height: 220)
@@ -83,9 +83,9 @@ struct StatisticsView: View {
             SectionHeader(title: "Daily active time", subtitle: "minutes")
             Chart(days, id: \.dayKey) { day in
                 AreaMark(x: .value("Date", day.date, unit: .day), y: .value("Minutes", day.activeSeconds / 60))
-                    .foregroundStyle(Color.accentColor.opacity(0.25).gradient)
+                    .foregroundStyle(Theme.accent.opacity(0.25).gradient)
                 LineMark(x: .value("Date", day.date, unit: .day), y: .value("Minutes", day.activeSeconds / 60))
-                    .foregroundStyle(Color.accentColor)
+                    .foregroundStyle(Theme.accent)
             }
             .frame(height: 200)
         }
@@ -99,7 +99,7 @@ struct StatisticsView: View {
             SectionHeader(title: "Time of day", subtitle: "net words by hour (all time)")
             Chart(patterns.byHour, id: \.hour) { hour in
                 BarMark(x: .value("Hour", hour.hour), y: .value("Words", hour.netWords))
-                    .foregroundStyle(Color.accentColor.gradient)
+                    .foregroundStyle(Theme.accent.gradient)
             }
             .frame(height: 200)
             if !patterns.hasSufficientData {
@@ -117,7 +117,7 @@ struct StatisticsView: View {
             SectionHeader(title: "Day of week", subtitle: "average words")
             Chart(patterns.byWeekday, id: \.weekday) { day in
                 BarMark(x: .value("Weekday", weekdayName(day.weekday)), y: .value("Words", day.averageWords))
-                    .foregroundStyle(Color.accentColor.gradient)
+                    .foregroundStyle(Theme.accent.gradient)
             }
             .frame(height: 200)
         }
@@ -132,7 +132,7 @@ struct StatisticsView: View {
             SectionHeader(title: "Session length", subtitle: "number of sessions")
             Chart(buckets, id: \.label) { bucket in
                 BarMark(x: .value("Length", bucket.label), y: .value("Sessions", bucket.count))
-                    .foregroundStyle(Color.accentColor.gradient)
+                    .foregroundStyle(Theme.accent.gradient)
             }
             .frame(height: 200)
         }

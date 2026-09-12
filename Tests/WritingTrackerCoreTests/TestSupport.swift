@@ -43,10 +43,10 @@ final class InMemoryDatabaseTests: XCTestCase {
         let db = try SQLiteDatabase.inMemory()
         let migrator = Migrator(database: db)
         let version = try migrator.migrate()
-        XCTAssertEqual(version, 1)
-        XCTAssertEqual(migrator.currentVersion, 1)
+        XCTAssertEqual(version, 2)
+        XCTAssertEqual(migrator.currentVersion, 2)
         // Running again must not throw or change the version.
-        XCTAssertEqual(try migrator.migrate(), 1)
+        XCTAssertEqual(try migrator.migrate(), 2)
     }
 
     func testDatabasePersistsAcrossConnections() throws {

@@ -238,6 +238,12 @@ public enum Migrations {
                 updated_at REAL NOT NULL
             );
             """)
+        },
+
+        // Reserved column (kept so schema versions stay consistent). Records the
+        // provenance of a session's word counts for future use.
+        Migration(version: 2, name: "reserved_word_count_source") { db in
+            try db.execute("ALTER TABLE sessions ADD COLUMN word_count_source TEXT NOT NULL DEFAULT 'none';")
         }
     ]
 }

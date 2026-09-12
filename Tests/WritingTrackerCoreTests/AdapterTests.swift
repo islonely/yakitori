@@ -42,6 +42,32 @@ final class AdapterTests: XCTestCase {
         XCTAssertFalse(word.capabilities.textAccess)
     }
 
+    func testPagesDocumentLineParsing() {
+        let line = "Novel.pages|||/Users/writer/Novel.pages|||48210|||260144"
+        let info = PagesAdapter.parseDocumentLine(line)
+        XCTAssertEqual(info?.displayName, "Novel.pages")
+        XCTAssertEqual(info?.filePath, "/Users/writer/Novel.pages")
+        XCTAssertEqual(info?.wordCount, 48_210)
+        XCTAssertEqual(info?.characterCount, 260_144)
+    }
+
+    func testPagesAdapterReportsExactWordCount() {
+        let pages = PagesAdapter(executor: MockScriptExecutor(result: nil))
+        XCTAssertTrue(pages.capabilities.activeDocument)
+        XCTAssertTrue(pages.capabilities.wordCount)
+        XCTAssertFalse(pages.capabilities.textAccess)
+    }
+
+    func testOnlyWordAndPagesAreAdvertisedAsWordCountApps() {
+        let countApps = AdapterRegistry.knownApplications.map(\.adapterType)
+        XCTAssertEqual(Set(countApps), Set([.word, .pages]))
+        // Time-only apps must never advertise a word count.
+        for entry in AdapterRegistry.timeOnlyApplications {
+            let adapter = AdapterRegistry().adapter(forBundleIdentifier: entry.bundleIdentifier, adapterType: entry.adapterType)
+            XCTAssertFalse(adapter.capabilities.wordCount, "\(entry.displayName) should not claim a word count")
+        }
+    }
+
     func testGenericAdapterReportsFocusOnly() {
         let generic = GenericApplicationAdapter(bundleIdentifier: "com.example.app")
         XCTAssertEqual(generic.capabilities, .focusAndActivityOnly)

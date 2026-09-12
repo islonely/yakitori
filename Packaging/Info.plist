@@ -7,13 +7,13 @@
     <key>CFBundleExecutable</key>
     <string>WritingTracker</string>
     <key>CFBundleIdentifier</key>
-    <string>com.writingtracker.app</string>
+    <string>com.yakitori.app</string>
     <key>CFBundleInfoDictionaryVersion</key>
     <string>6.0</string>
     <key>CFBundleName</key>
-    <string>Writing Tracker</string>
+    <string>Yakitori</string>
     <key>CFBundleDisplayName</key>
-    <string>Writing Tracker</string>
+    <string>Yakitori</string>
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleShortVersionString</key>
@@ -27,8 +27,8 @@
     <key>NSHighResolutionCapable</key>
     <true/>
     <key>NSAppleEventsUsageDescription</key>
-    <string>Writing Tracker uses Apple Events to ask writing applications such as Microsoft Word for the active document and its word count. Your document text is never stored.</string>
+    <string>Yakitori uses Apple Events to ask Microsoft Word or Pages for the active document and its exact word count. Your document text is never stored.</string>
     <key>NSHumanReadableCopyright</key>
-    <string>Copyright © 2026 Writing Tracker. All rights reserved.</string>
+    <string>Copyright © 2026 Yakitori. All rights reserved.</string>
 </dict>
 </plist>

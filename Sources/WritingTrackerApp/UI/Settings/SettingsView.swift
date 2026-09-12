@@ -16,7 +16,7 @@ struct SettingsView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 22) {
-                Text("Settings").font(.largeTitle.weight(.semibold))
+                BrandHeader(title: "Settings", subtitle: "Tracking, applications and privacy", symbol: "gearshape")
                 generalSection
                 trackingSection
                 applicationsSection
@@ -175,7 +175,7 @@ struct SettingsView: View {
     }
 
     private var privacySection: some View {
-        settingsCard("Privacy", subtitle: "Writing Tracker tracks activity, not content") {
+        settingsCard("Privacy", subtitle: "Yakitori tracks activity, not content") {
             privacyRow("Manuscript text", "Never stored")
             privacyRow("Keyboard contents", "Never stored")
             privacyRow("Clipboard", "Not accessed")

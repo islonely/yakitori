@@ -45,8 +45,8 @@ struct CalendarView: View {
         let weeks = buildHeatmap()
         return ScrollView {
             VStack(alignment: .leading, spacing: 20) {
+                BrandHeader(title: "Calendar", subtitle: "Your daily writing heatmap", symbol: "calendar")
                 HStack {
-                    Text("Calendar").font(.largeTitle.weight(.semibold))
                     Spacer()
                     Picker("Metric", selection: $metric) {
                         ForEach(HeatmapMetric.allCases) { Text($0.title).tag($0) }

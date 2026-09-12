@@ -11,10 +11,10 @@ struct MenuBarLabel: View {
             Label {
                 Text(Format.compact(tracking.snapshot.todayNetWords))
             } icon: {
-                Image(systemName: "square.and.pencil")
+                Image(systemName: "flame.fill")
             }
         } else {
-            Image(systemName: "square.and.pencil")
+            Image(systemName: "flame.fill")
         }
     }
 }
@@ -42,10 +42,9 @@ struct MenuBarPopover: View {
 
     private var header: some View {
         HStack {
-            Image(systemName: "square.and.pencil")
-                .foregroundStyle(Color.accentColor)
-            Text("Writing Tracker")
-                .font(.headline)
+            YakitoriMark(size: 24)
+            Text("Yakitori")
+                .font(.system(.headline, design: .rounded).weight(.bold))
             Spacer()
             Circle()
                 .fill(tracking.snapshot.isSessionOpen ? Color.green : Color.secondary.opacity(0.4))
@@ -148,7 +147,7 @@ struct MenuBarPopover: View {
             } label: {
                 Image(systemName: "power")
             }
-            .help("Quit Writing Tracker")
+            .help("Quit Yakitori")
         }
         .buttonStyle(.bordered)
     }

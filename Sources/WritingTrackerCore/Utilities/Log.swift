@@ -7,7 +7,7 @@ import os
 /// timestamps and word-count numbers, but must **never** contain manuscript
 /// text, typed characters, clipboard contents, or keystrokes.
 public enum Log {
-    private static let subsystem = "com.writingtracker.app"
+    private static let subsystem = "com.yakitori.app"
 
     public static let app = Logger(subsystem: subsystem, category: "app")
     public static let tracking = Logger(subsystem: subsystem, category: "tracking")

@@ -40,7 +40,7 @@ struct OnboardingView: View {
         stepLayout(
             symbol: "square.and.pencil",
             title: "Track your writing without changing where you write",
-            body: "Writing Tracker runs quietly while you write in apps like Microsoft Word. It records activity, timing, and word-count changes — never the words you type.\n\n• No manuscript text\n• No keystrokes\n• No screenshots\n• Data stays on your Mac"
+            body: "Yakitori runs quietly while you write in apps like Microsoft Word and Pages. It records activity, timing, and exact word-count changes without storing your manuscript.\n\n• No manuscript text\n• No keystrokes\n• No screenshots\n• Data stays on your Mac"
         )
     }
 
@@ -81,7 +81,7 @@ struct OnboardingView: View {
                 } label: {
                     HStack(alignment: .top, spacing: 10) {
                         Image(systemName: state.settings.trackingMode == mode ? "largecircle.fill.circle" : "circle")
-                            .foregroundStyle(Color.accentColor)
+                            .foregroundStyle(Theme.accent)
                         VStack(alignment: .leading, spacing: 2) {
                             Text(mode.displayName).font(.body.weight(.medium))
                             Text(modeExplanation(mode)).font(.caption).foregroundStyle(.secondary)
@@ -102,23 +102,23 @@ struct OnboardingView: View {
         stepLayout(
             symbol: "hand.raised",
             title: "Accessibility permission",
-            body: "Accessibility lets Writing Tracker detect that you are active in another app. The app records activity timestamps only — it never saves what you type.",
+            body: "Accessibility lets Yakitori detect that you are active in another app. The app records activity timestamps only — it never saves what you type.",
             primary: ("Grant Accessibility Permission", { state.requestPermission(.accessibility) }),
             secondary: ("Skip for Now", { advance() })
         )
     }
 
     private var wordStep: some View {
-        let wordEnabled = state.settings.selectedApplicationIDs.contains { id in
-            (try? state.container.applicationRepository.find(id: id))?.adapterType == .word
-        }
+        let documentApps = state.settings.selectedApplicationIDs.compactMap { id in
+            try? state.container.applicationRepository.find(id: id)
+        }.filter { $0.adapterType == .word || $0.adapterType == .pages }
         return stepLayout(
             symbol: "doc.text.magnifyingglass",
-            title: "Microsoft Word integration",
-            body: wordEnabled
-                ? "Word integration lets Writing Tracker ask Word for the active document and word count. Your document text is never stored by Writing Tracker."
-                : "Word integration is optional. If Word is not one of your writing applications, you can skip this step.",
-            primary: wordEnabled ? ("Grant Word Automation", { state.requestPermission(.wordAutomation) }) : nil,
+            title: "Word & Pages integration",
+            body: documentApps.isEmpty
+                ? "Word and Pages integration is optional. It lets Yakitori read the active document and its exact word count. Add Word or Pages as a writing application to enable it."
+                : "Yakitori asks \(documentApps.map(\.displayName).joined(separator: " and ")) for the active document and its exact word count. Your document text is never stored.",
+            primary: documentApps.isEmpty ? nil : ("Grant Automation", { state.requestPermission(.wordAutomation) }),
             secondary: ("Continue", { advance() })
         )
     }
@@ -142,7 +142,7 @@ struct OnboardingView: View {
     private var doneStep: some View {
         stepLayout(
             symbol: "checkmark.circle",
-            title: "Writing Tracker is ready",
+            title: "Yakitori is ready",
             body: "You can write normally in your chosen applications. Close the dashboard whenever you like — background tracking continues."
         )
     }
@@ -177,7 +177,7 @@ struct OnboardingView: View {
         VStack(spacing: 16) {
             Image(systemName: symbol)
                 .font(.system(size: 46))
-                .foregroundStyle(Color.accentColor)
+                .foregroundStyle(Theme.accent)
             Text(title).font(.title2.weight(.semibold)).multilineTextAlignment(.center)
             Text(body).multilineTextAlignment(.center).foregroundStyle(.secondary).frame(maxWidth: 460)
             if let primary {

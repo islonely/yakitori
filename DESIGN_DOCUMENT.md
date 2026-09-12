@@ -73,14 +73,15 @@ The tracker detects:
 
 The same system should work with:
 
-- Microsoft Word
-- Scrivener
-- Ulysses
-- Apple Pages
-- Google Docs in a browser
-- LibreOffice
-- Obsidian
-- potentially any other application that can expose useful document information
+- Microsoft Word (exact word count)
+- Apple Pages (exact word count)
+- Scrivener, Ulysses, LibreOffice, Obsidian and browsers (focus/activity time
+  only — no exact word count is available from these applications)
+
+Word counts are only shown for applications that expose an **exact** count through
+a supported macOS interface. The tracker never estimates word counts from
+keystrokes. Applications without a count API are still useful for time tracking
+but are labelled accordingly.
 
 The application should therefore have an abstraction called something like:
 
@@ -357,12 +358,15 @@ Example:
 
 ```text
 WritingApplicationAdapter
-    ├── WordAdapter
-    ├── ScrivenerAdapter
-    ├── PagesAdapter
-    ├── UlyssesAdapter
-    ├── BrowserDocumentAdapter
-    └── GenericApplicationAdapter
+    ├── WordAdapter               (exact word count)
+    ├── PagesAdapter              (exact word count)
+    ├── ScrivenerAdapter          (time only)
+    ├── UlyssesAdapter            (time only)
+    ├── BrowserDocumentAdapter    (time only)
+    └── GenericApplicationAdapter (time only)
+
+Only Word and Pages currently report word counts. Every other adapter reports
+`wordCount: nil` and the UI states "Word count unavailable".
 ```
 
 Each adapter can expose capabilities.
@@ -3582,9 +3586,9 @@ Add:
 
 Add:
 
-- Pages
-- Ulysses
-- generic application adapters
+- More **exact word-count** integrations where a supported interface exists
+- Time-only tracking polish for Scrivener, Ulysses, LibreOffice, Obsidian and browsers
+- generic application adapters (time only)
 - productivity pattern analysis
 - project comparisons
 - year-in-review

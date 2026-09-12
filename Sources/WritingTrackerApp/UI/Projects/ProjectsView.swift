@@ -63,24 +63,26 @@ struct ProjectsView: View {
 
     private var library: some View {
         VStack(alignment: .leading, spacing: 0) {
-            HStack {
-                Text("Projects").font(.largeTitle.weight(.semibold))
-                Spacer()
-                Picker("Filter", selection: $filter) {
-                    ForEach(ProjectFilter.allCases) { Text($0.title).tag($0) }
+            VStack(alignment: .leading, spacing: 14) {
+                BrandHeader(title: "Projects", subtitle: "Books, articles and long-form work", symbol: "books.vertical")
+                HStack {
+                    Spacer()
+                    Picker("Filter", selection: $filter) {
+                        ForEach(ProjectFilter.allCases) { Text($0.title).tag($0) }
+                    }
+                    .pickerStyle(.segmented)
+                    .frame(width: 300)
+                    Picker("Sort", selection: $sort) {
+                        ForEach(ProjectSort.allCases) { Text($0.title).tag($0) }
+                    }
+                    .frame(width: 150)
+                    Button {
+                        isCreating = true
+                    } label: {
+                        Label("New Project", systemImage: "plus")
+                    }
+                    .buttonStyle(.borderedProminent)
                 }
-                .pickerStyle(.segmented)
-                .frame(width: 300)
-                Picker("Sort", selection: $sort) {
-                    ForEach(ProjectSort.allCases) { Text($0.title).tag($0) }
-                }
-                .frame(width: 150)
-                Button {
-                    isCreating = true
-                } label: {
-                    Label("New Project", systemImage: "plus")
-                }
-                .buttonStyle(.borderedProminent)
             }
             .padding(24)
 

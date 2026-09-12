@@ -6,7 +6,33 @@
 **Primary stack:** Swift + SwiftUI  
 **Architecture:** Native menu bar app + persistent background tracking service + local database  
 **Initial writing application:** Microsoft Word for Mac  
-**Planned integrations:** Scrivener, Pages, Ulysses, browser-based editors, LibreOffice, Obsidian, and generic writing apps
+**Word-count integrations:** Microsoft Word and Apple Pages (applications that expose an exact,
+scriptable word count). Applications without a word-count API may still be tracked for
+focus/activity but are **not** advertised as supported, and word counts are never estimated.
+
+## Supported writing applications
+
+The product only claims word-count support for applications from which an **exact**
+word count can be read through a supported macOS interface. As of this document:
+
+| Application | Focus/activity | Exact word count | Mechanism |
+|---|---|---|---|
+| Microsoft Word | Yes | Yes | AppleScript `compute statistics` |
+| Apple Pages | Yes | Yes | AppleScript `count of words of body text` |
+| Scrivener | Yes (time only) | **No** | No scripting API; project files would require reading manuscript content |
+| Ulysses | Yes (time only) | **No** | No reliable scripting API |
+| LibreOffice | Yes (time only) | **No** | No supported macOS scripting API |
+| Obsidian / browsers | Yes (time only) | **No** | Electron/browser; no native document API |
+
+Rules:
+
+- **Never estimate a word count from keystrokes.** If an application does not
+  expose an exact count, the UI reports "Word count unavailable".
+- Applications without a count API can still be added and tracked for focus and
+  active time, but they are labelled as time-only.
+- Adding a new count-supported adapter requires a verified, documented interface
+  that returns a word count without reading manuscript text.
+
 
 ---
 
@@ -1826,15 +1852,18 @@ Implement the adapter system now even though only Word needs deep integration in
 Future adapters:
 
 ```text
-WordAdapter
-ScrivenerAdapter
-PagesAdapter
-UlyssesAdapter
-BrowserDocumentAdapter
-LibreOfficeAdapter
-ObsidianAdapter
-GenericApplicationAdapter
+WordAdapter        (exact word count)
+PagesAdapter       (exact word count)
+ScrivenerAdapter   (time only)
+UlyssesAdapter     (time only)
+BrowserDocumentAdapter (time only)
+LibreOfficeAdapter (time only)
+ObsidianAdapter    (time only)
+GenericApplicationAdapter (time only)
 ```
+
+Only adapters marked "exact word count" may report word counts; the rest must
+return unavailable values rather than estimating.
 
 The generic adapter should at minimum support:
 
@@ -1896,17 +1925,17 @@ Do not prioritize these ahead of core tracking correctness.
 
 ---
 
-# 45. Phase 9: Scrivener and Additional Integrations
+# 45. Phase 9: Additional Integrations (exact word counts only)
 
 After Word is stable:
 
-1. Scrivener.
-2. Pages.
-3. Ulysses.
-4. Browser-based editors.
-5. LibreOffice.
-6. Obsidian.
-7. Generic application improvements.
+1. Pages (implemented — verified AppleScript word count).
+2. Any future application **only if** it exposes a supported, documented word
+   count that does not require reading manuscript text.
+
+Applications without such an interface (Scrivener, Ulysses, LibreOffice,
+Obsidian, browsers, generic apps) may be tracked for focus/activity time, but
+must be presented as time-only and must never produce an estimated word count.
 
 Each integration should be developed as an isolated adapter.
 

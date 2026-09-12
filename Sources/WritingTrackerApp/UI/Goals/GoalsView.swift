@@ -10,8 +10,8 @@ struct GoalsView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
+                BrandHeader(title: "Goals", subtitle: "Daily, weekly and project targets", symbol: "target")
                 HStack {
-                    Text("Goals").font(.largeTitle.weight(.semibold))
                     Spacer()
                     Button { isAdding = true } label: {
                         Label("New Goal", systemImage: "plus")

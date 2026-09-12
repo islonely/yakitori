@@ -5,20 +5,20 @@
 # Usage:
 #   Scripts/build-app.sh [debug|release]
 #
-# The resulting bundle is written to dist/WritingTracker.app
+# The resulting bundle is written to dist/Yakitori.app
 #
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 CONFIG="${1:-release}"
 
-echo "Building WritingTracker ($CONFIG)…"
+echo "Building Yakitori ($CONFIG)…"
 swift build -c "$CONFIG" --product WritingTracker
 
 # Resolve the build output directory (works for both debug and release).
 BIN_DIR="$(swift build -c "$CONFIG" --show-bin-path)"
 
-APP="$ROOT/dist/WritingTracker.app"
+APP="$ROOT/dist/Yakitori.app"
 rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 

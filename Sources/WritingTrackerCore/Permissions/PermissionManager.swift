@@ -36,9 +36,9 @@ public struct PermissionRequirement: Identifiable, Hashable, Sendable {
     )
 
     public static let wordWordCount = PermissionRequirement(
-        capability: "Microsoft Word word counts",
+        capability: "Word & Pages word counts",
         required: [.wordAutomation],
-        degradedExplanation: "Without Automation permission, Word word counts are unavailable; focus and activity tracking continue."
+        degradedExplanation: "Without Automation permission, document word counts are unavailable; focus and activity tracking continue."
     )
 
     public static let directFileAccess = PermissionRequirement(
@@ -136,19 +136,31 @@ public final class PermissionManager: PermissionProviding {
         DispatchQueue.main.async { [weak self] in self?.onChange?() }
     }
 
-    /// Runs a harmless Word query to trigger the Automation prompt.
+    /// Runs a harmless query against Word/Pages to trigger the Automation prompt
+    /// for whichever document apps are currently running.
     public func requestWordAutomation() {
-        guard ApplicationLocator.isRunning(bundleIdentifier: "com.microsoft.Word") else {
-            wordAutomationState = .notDetermined
-            return
+        let probes: [(bundleIdentifier: String, script: String)] = [
+            ("com.microsoft.Word", "tell application \"Microsoft Word\" to get version"),
+            ("com.apple.iWork.Pages", "tell application \"Pages\" to get version")
+        ]
+        var probed = false
+        var denied = false
+        for probe in probes where ApplicationLocator.isRunning(bundleIdentifier: probe.bundleIdentifier) {
+            probed = true
+            do {
+                _ = try AppleScriptExecutor().execute(probe.script)
+            } catch ScriptError.permissionDenied {
+                denied = true
+            } catch {
+                // App may be busy; ignore and keep the last known state.
+            }
         }
-        do {
-            _ = try AppleScriptExecutor().execute("tell application \"Microsoft Word\" to get version")
-            wordAutomationState = .granted
-        } catch ScriptError.permissionDenied {
+        if denied {
             wordAutomationState = .denied
-        } catch {
-            // Word may be busy; keep the last known state rather than guessing.
+        } else if probed {
+            wordAutomationState = .granted
+        } else {
+            wordAutomationState = .notDetermined
         }
         DispatchQueue.main.async { [weak self] in self?.onChange?() }
     }

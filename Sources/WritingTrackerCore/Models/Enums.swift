@@ -330,7 +330,7 @@ public enum PermissionKind: String, Codable, CaseIterable, Identifiable, Sendabl
     public var displayName: String {
         switch self {
         case .accessibility: return "Accessibility"
-        case .wordAutomation: return "Microsoft Word Automation"
+        case .wordAutomation: return "Document Automation (Word, Pages)"
         case .fileAccess: return "Selected File Access"
         case .notifications: return "Notifications"
         case .launchAtLogin: return "Launch at Login"

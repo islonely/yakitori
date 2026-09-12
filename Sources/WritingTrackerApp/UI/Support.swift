@@ -70,12 +70,19 @@ extension View {
     func cardStyle() -> some View {
         self
             .padding(16)
-            .background(Color(nsColor: .controlBackgroundColor))
-            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-            .overlay(
-                RoundedRectangle(cornerRadius: 12, style: .continuous)
-                    .strokeBorder(Color.primary.opacity(0.06))
+            .background(
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    .fill(Color(nsColor: .controlBackgroundColor))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 14, style: .continuous)
+                            .fill(Theme.ember.opacity(0.035))
+                    )
             )
+            .overlay(
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    .strokeBorder(Theme.ember.opacity(0.14))
+            )
+            .shadow(color: Theme.ember.opacity(0.07), radius: 10, y: 4)
     }
 }
 
@@ -86,7 +93,7 @@ struct StatCard: View {
     let value: String
     var subtitle: String?
     var systemImage: String?
-    var tint: Color = .accentColor
+    var tint: Color = Theme.accent
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
@@ -144,7 +151,7 @@ struct MetricTile: View {
 struct ProgressRing: View {
     let fraction: Double
     var lineWidth: CGFloat = 10
-    var tint: Color = .accentColor
+    var tint: Color = Theme.accent
 
     var body: some View {
         ZStack {
@@ -152,7 +159,10 @@ struct ProgressRing: View {
                 .stroke(Color.primary.opacity(0.1), lineWidth: lineWidth)
             Circle()
                 .trim(from: 0, to: max(0.001, min(1, fraction)))
-                .stroke(tint, style: StrokeStyle(lineWidth: lineWidth, lineCap: .round))
+                .stroke(
+                    AngularGradient(colors: [Theme.ember, Theme.gold, Theme.ember], center: .center),
+                    style: StrokeStyle(lineWidth: lineWidth, lineCap: .round)
+                )
                 .rotationEffect(.degrees(-90))
                 .animation(.easeInOut(duration: 0.4), value: fraction)
             Text(Format.percent(fraction))
@@ -225,10 +235,9 @@ struct PermissionBadge: View {
     }
 }
 
-enum HeatmapColor {    static func color(intensity: Double) -> Color {
-        guard intensity > 0 else { return Color.primary.opacity(0.06) }
-        let clamped = min(1.0, max(0.0, intensity))
-        return Color.accentColor.opacity(0.18 + 0.82 * clamped)
+enum HeatmapColor {
+    static func color(intensity: Double) -> Color {
+        Theme.heatmapColor(intensity)
     }
 }
 

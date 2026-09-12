@@ -20,6 +20,9 @@ struct SessionsView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
+            BrandHeader(title: "Sessions", subtitle: "Every recorded writing session", symbol: "list.bullet.rectangle")
+                .padding(.horizontal, 24)
+                .padding(.top, 24)
             filterBar
             Divider()
             if sessions.isEmpty {

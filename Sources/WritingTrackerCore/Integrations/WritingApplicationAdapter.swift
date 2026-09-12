@@ -140,12 +140,20 @@ public enum ApplicationLocator {
 public final class AdapterRegistry {
     public static let shared = AdapterRegistry()
 
-    /// Known writing applications the tracker can offer during onboarding.
+    /// Applications the tracker can offer as first-class writing apps, i.e. those
+    /// from which an **exact** word count can be read. Applications without a
+    /// word-count API can still be added manually and tracked for focus/activity
+    /// only, but they are not advertised as supported writing apps.
     public static let knownApplications: [(bundleIdentifier: String, displayName: String, adapterType: AdapterType)] = [
         ("com.microsoft.Word", "Microsoft Word", .word),
+        ("com.apple.iWork.Pages", "Pages", .pages)
+    ]
+
+    /// Applications we recognise for focus/activity tracking but that cannot
+    /// provide an exact word count.
+    public static let timeOnlyApplications: [(bundleIdentifier: String, displayName: String, adapterType: AdapterType)] = [
         ("com.literatureandlatte.scrivener3", "Scrivener", .scrivener),
         ("com.literatureandlatte.scrivener", "Scrivener", .scrivener),
-        ("com.apple.iWork.Pages", "Pages", .pages),
         ("com.ulyssesapp.mac", "Ulysses", .ulysses),
         ("org.libreoffice.script", "LibreOffice", .libreOffice),
         ("md.obsidian", "Obsidian", .obsidian),

@@ -10,14 +10,11 @@ struct AchievementsView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
-                HStack {
-                    VStack(alignment: .leading, spacing: 3) {
-                        Text("Achievements").font(.largeTitle.weight(.semibold))
-                        Text("\(unlocked) of \(achievements.count) unlocked")
-                            .foregroundStyle(.secondary)
-                    }
-                    Spacer()
-                }
+                BrandHeader(
+                    title: "Achievements",
+                    subtitle: "\(unlocked) of \(achievements.count) unlocked",
+                    symbol: "trophy"
+                )
                 LazyVGrid(columns: [GridItem(.adaptive(minimum: 220, maximum: 280), spacing: 16)], spacing: 16) {
                     ForEach(achievements) { achievement in
                         achievementCard(achievement)
@@ -36,7 +33,7 @@ struct AchievementsView: View {
             HStack {
                 Image(systemName: achievement.symbol)
                     .font(.title2)
-                    .foregroundStyle(achievement.isUnlocked ? Color.accentColor : .secondary)
+                    .foregroundStyle(achievement.isUnlocked ? Theme.accent : .secondary)
                 Spacer()
                 if achievement.isUnlocked {
                     Image(systemName: "checkmark.seal.fill").foregroundStyle(.green)
@@ -80,8 +77,8 @@ struct ReportsView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
+                BrandHeader(title: "Reports", subtitle: "Weekly, monthly and yearly summaries", symbol: "doc.text")
                 HStack {
-                    Text("Reports").font(.largeTitle.weight(.semibold))
                     Spacer()
                     Picker("Report", selection: $kind) {
                         ForEach(Kind.allCases) { Text($0.title).tag($0) }
@@ -160,7 +157,7 @@ struct ReportsView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(28)
         .background(
-            LinearGradient(colors: [Color.accentColor.opacity(0.22), Color.accentColor.opacity(0.05)], startPoint: .topLeading, endPoint: .bottomTrailing)
+            LinearGradient(colors: [Theme.accent.opacity(0.22), Theme.accent.opacity(0.05)], startPoint: .topLeading, endPoint: .bottomTrailing)
         )
         .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
     }

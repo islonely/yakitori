@@ -4,7 +4,7 @@ import UserNotifications
 import WritingTrackerCore
 
 @main
-struct WritingTrackerApp: App {
+struct YakitoriApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     @StateObject private var state = AppState.shared
 
@@ -13,6 +13,7 @@ struct WritingTrackerApp: App {
             MenuBarPopover()
                 .environmentObject(state)
                 .environmentObject(state.tracking)
+                .tint(Theme.accent)
         } label: {
             MenuBarLabel()
                 .environmentObject(state)
@@ -20,16 +21,17 @@ struct WritingTrackerApp: App {
         }
         .menuBarExtraStyle(.window)
 
-        Window("Writing Tracker", id: "dashboard") {
+        Window("Yakitori", id: "dashboard") {
             MainWindowView()
                 .environmentObject(state)
                 .environmentObject(state.tracking)
+                .tint(Theme.accent)
                 .frame(minWidth: 960, minHeight: 640)
         }
         .defaultSize(width: 1160, height: 760)
         .commands {
             CommandGroup(replacing: .appInfo) {
-                Button("About Writing Tracker") {
+                Button("About Yakitori") {
                     NSApplication.shared.orderFrontStandardAboutPanel(nil)
                 }
             }
@@ -42,7 +44,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
         NSApp.setActivationPolicy(.accessory)
         UNUserNotificationCenter.current().delegate = self
 
-        // Headless diagnostic mode: `WritingTracker --diagnostics [--probe-word]`
+        // Headless diagnostic mode: `Yakitori --diagnostics [--probe-word]`
         if ProcessInfo.processInfo.arguments.contains("--diagnostics") {
             let container = AppState.shared.container
             let diagnostics = DiagnosticsService(

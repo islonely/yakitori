@@ -42,15 +42,7 @@ struct DashboardView: View {
     }
 
     private var header: some View {
-        HStack(alignment: .firstTextBaseline) {
-            VStack(alignment: .leading, spacing: 2) {
-                Text(greeting)
-                    .font(.largeTitle.weight(.semibold))
-                Text(Format.day.string(from: Date()))
-                    .foregroundStyle(.secondary)
-            }
-            Spacer()
-        }
+        BrandHeader(title: greeting, subtitle: Format.day.string(from: Date()), symbol: "chart.line.uptrend.xyaxis")
     }
 
     private var greeting: String {
@@ -92,7 +84,7 @@ struct DashboardView: View {
                     x: .value("Hour", hour.hour),
                     y: .value("Words", hour.netWords)
                 )
-                .foregroundStyle(Color.accentColor.gradient)
+                .foregroundStyle(Theme.accent.gradient)
                 .cornerRadius(3)
             }
             .chartXAxis {
@@ -121,7 +113,7 @@ struct DashboardView: View {
                     x: .value("Date", day.date, unit: .day),
                     y: .value("Words", day.netWords)
                 )
-                .foregroundStyle(Color.accentColor.gradient)
+                .foregroundStyle(Theme.accent.gradient)
                 .cornerRadius(2)
             }
             .frame(height: 200)

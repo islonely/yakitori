@@ -1,9 +1,8 @@
-# Writing Tracker
+# Yakitori
 
 A native macOS writing analytics and session tracker. It observes writing activity
-in the applications you already use (Microsoft Word first), associates it with
-projects, records statistics, and presents analytics — **without ever recording
-the words you type**.
+in the applications you already use, associates it with projects, records
+statistics, and presents analytics — **without ever recording the words you type**.
 
 > Track the writer, not the writing.
 
@@ -11,6 +10,22 @@ This repository implements the product described in
 [`DESIGN_DOCUMENT.md`](DESIGN_DOCUMENT.md) and the
 [`IMPLEMENTATION_ROADMAP.md`](IMPLEMENTATION_ROADMAP.md). [`AGENTS.md`](AGENTS.md)
 contains the operating rules used while building it.
+
+---
+
+## Supported applications
+
+Yakitori only reports a word count when it can read an **exact** one through a
+supported macOS interface. It never estimates words from keystrokes.
+
+| Application | Focus / time | Exact word count | Mechanism |
+|---|---|---|---|
+| Microsoft Word | Yes | Yes | AppleScript `compute statistics` |
+| Apple Pages | Yes | Yes | AppleScript `count of words of body text` |
+| Scrivener | Yes | No | No scripting API (reading project files would mean reading manuscript text) |
+| Ulysses, LibreOffice, Obsidian, browsers | Yes | No | No supported document/word-count API |
+
+Time-only applications show "Word count unavailable" rather than a guess.
 
 ---
 
@@ -22,11 +37,10 @@ contains the operating rules used while building it.
   with pause/resume, inactivity timeout, sleep/wake handling and crash recovery.
 - **Frontmost application detection** and **listen-only activity monitoring**
   (keyboard/mouse signals only — never key contents).
-- **Microsoft Word adapter** using Word's AppleScript interface (verified against
-  Word for Mac 16.x) for active document, path and word count.
-- **Adapter architecture** (`WritingApplicationAdapter`) so new editors can be
-  added without touching the tracking engine. Scrivener, Pages, Ulysses,
-  LibreOffice, Obsidian and browsers ship as focus/activity-only adapters.
+- **Word & Pages adapters** using AppleScript (verified against Word for Mac 16.x
+  and Pages on macOS 26) for active document, path and exact word count.
+- **Adapter architecture** (`WritingApplicationAdapter`) so new integrations can be
+  added without touching the tracking engine.
 - **Local-first SQLite persistence** behind a `Database` abstraction and
   repositories, with versioned migrations.
 - **Statistics engine** for daily/weekly/monthly/yearly/lifetime totals, streaks,
@@ -34,8 +48,7 @@ contains the operating rules used while building it.
 - **Full GUI**: dashboard, statistics, calendar heatmap, sessions, projects,
   goals, reports, achievements, settings and a Permission Center.
 - **CSV/JSON export**, verified database backups, and safe destructive operations.
-- **Privacy by design**: no manuscript text, keystrokes, clipboard, screenshots,
-  or cloud.
+- **Privacy by design**: no manuscript text, keystrokes, clipboard, screenshots, or cloud.
 
 ---
 
@@ -54,19 +67,23 @@ swift test
 
 # Build a launchable .app bundle (recommended for permissions/login item)
 ./Scripts/build-app.sh release
-open dist/WritingTracker.app
+open dist/Yakitori.app
 ```
 
-The app is a menu bar utility (`LSUIElement`), so it does not appear in the Dock.
-Click the pencil icon in the menu bar to open the popover, then **Dashboard**.
+Yakitori is a menu bar utility (`LSUIElement`), so it has no Dock icon until the
+dashboard is open. Click the flame icon in the menu bar to open the popover, then
+**Dashboard**.
 
 The database lives at:
 
 ```
-~/Library/Application Support/WritingTracker/WritingTracker.sqlite
+~/Library/Application Support/Yakitori/WritingTracker.sqlite
 ```
 
-Backups are written to `.../WritingTracker/Backups/`.
+(A pre-rename `WritingTracker` folder is migrated automatically the first time
+the app launches; if the move fails, the old folder is used so no data is lost.)
+
+Backups are written to `.../Yakitori/Backups/`.
 
 ---
 
@@ -78,7 +95,7 @@ Nothing is bypassed, and every feature degrades gracefully.
 | Capability | Permission | If denied |
 |---|---|---|
 | Keyboard activity detection | Accessibility | Focus/active timing still works from the frontmost app and the system idle counter; manual sessions still work |
-| Word document + word count | Automation (Apple Events) | Sessions, focus/activity and manual word entry still work; Word word counts are unavailable |
+| Word/Pages document + word count | Automation (Apple Events) | Sessions and focus/activity still work; document word counts are unavailable |
 | Specific file/folder access | Files & Folders (via `NSOpenPanel`) | Only that specific feature is disabled |
 | Notifications | Notifications | Requested only when you enable notifications |
 | Launch at Login | Login Items (`SMAppService`) | Start the app manually |
@@ -97,25 +114,25 @@ after a rebuild. This is expected during development.
 ## Architecture
 
 ```
-SwiftUI UI  →  AppState / ViewModels  →  Services  →  Repositories  →  SQLite
-                                              │
-                              ┌───────────────┼────────────────┐
-                              ▼               ▼                ▼
-                       TrackingEngine   StatisticsService   PermissionManager
-                              │               │
-                       Activity events   Aggregates
-                              │               │
-                              └───────┬───────┘
-                                      ▼
-                             Repositories / Database
-                                      │
-                              Application Adapters
-                         (Word, Scrivener, Pages, …)
+SwiftUI UI  →  AppState  →  Services  →  Repositories  →  SQLite
+                                  │
+                  ┌───────────────┼────────────────┐
+                  ▼               ▼                ▼
+           TrackingEngine   StatisticsService   PermissionManager
+                  │               │
+           Activity events   Aggregates
+                  │               │
+                  └───────┬───────┘
+                          ▼
+                 Repositories / Database
+                          │
+                  Application Adapters
+              (Word, Pages = exact counts; others time-only)
 ```
 
 - `Sources/WritingTrackerCore` — models, persistence, repositories, services,
   statistics, tracking engine, permissions, adapters. **No SwiftUI.**
-- `Sources/WritingTrackerApp` — SwiftUI UI, `AppState`, `AppDelegate`.
+- `Sources/WritingTrackerApp` — SwiftUI UI, `AppState`, `AppDelegate`, theme.
 - `Tests/WritingTrackerCoreTests` — unit/integration tests using isolated
   in-memory or temporary databases.
 
@@ -126,7 +143,8 @@ Key design rules enforced by the code:
 - The UI never touches SQLite directly.
 - Application-specific behaviour lives only in adapters.
 - Net manuscript change is never labelled "words written".
-- `wordsAdded` / `wordsRemoved` are `nil` unless edit-level data exists.
+- `wordsAdded` / `wordsRemoved` are `nil` unless reliable edit-level data exists.
+- Word counts are never estimated from keystrokes.
 - All statistics are derived from raw sessions and can be rebuilt.
 
 ---
@@ -156,11 +174,13 @@ export, backup, and destructive-operation safety.
 
 ## Known limitations
 
-- Additional writing-application adapters (Scrivener, Pages, Ulysses,
-  LibreOffice, Obsidian, browsers) currently provide focus/activity tracking
-  only; deep document/word-count integration is Word-only.
+- Exact word counts are available for **Word and Pages** only. Scrivener, Ulysses,
+  LibreOffice, Obsidian and browsers are tracked for focus/activity time and report
+  "Word count unavailable".
+- Pages counts come from `body text`, so headers, footers and text boxes are not
+  included; the script enumerates the document and can be slower on very large files.
 - `wordsAdded`/`wordsRemoved` are only populated for manual entries because Word
-  exposes net word count, not edit-level deltas.
+  and Pages expose net word count, not edit-level deltas.
 - The tracking engine runs in-process with the menu bar app (which keeps running
   when the dashboard is closed) rather than as a separate XPC/LaunchAgent.
   The engine is GUI-independent and the boundary would allow extracting it later.

@@ -77,8 +77,8 @@ struct ProjectDetailView: View {
                         Text("CURRENT")
                             .font(.caption2.weight(.bold))
                             .padding(.horizontal, 6).padding(.vertical, 2)
-                            .background(Color.accentColor.opacity(0.15))
-                            .foregroundStyle(Color.accentColor)
+                            .background(Theme.accent.opacity(0.15))
+                            .foregroundStyle(Theme.accent)
                             .clipShape(Capsule())
                     }
                 }
@@ -179,9 +179,9 @@ struct ProjectDetailView: View {
             } else {
                 Chart(points, id: \.date) { point in
                     LineMark(x: .value("Date", point.date), y: .value("Words", point.words))
-                        .foregroundStyle(Color.accentColor)
+                        .foregroundStyle(Theme.accent)
                     AreaMark(x: .value("Date", point.date), y: .value("Words", point.words))
-                        .foregroundStyle(Color.accentColor.opacity(0.15).gradient)
+                        .foregroundStyle(Theme.accent.opacity(0.15).gradient)
                 }
                 .frame(height: 180)
             }
@@ -199,7 +199,7 @@ struct ProjectDetailView: View {
             } else {
                 Chart(daily, id: \.date) { point in
                     BarMark(x: .value("Date", point.date, unit: .day), y: .value("Words", point.words))
-                        .foregroundStyle(Color.accentColor.gradient)
+                        .foregroundStyle(Theme.accent.gradient)
                 }
                 .frame(height: 180)
             }

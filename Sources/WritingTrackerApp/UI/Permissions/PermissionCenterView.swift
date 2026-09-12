@@ -5,8 +5,8 @@ struct PermissionCenterView: View {
     @EnvironmentObject private var state: AppState
 
     private let explanations: [PermissionKind: String] = [
-        .accessibility: "Lets Writing Tracker detect that you are active while another app is frontmost. Only activity timestamps are recorded; what you type is never saved.",
-        .wordAutomation: "Lets Writing Tracker ask Microsoft Word for the active document and word count. Word is only queried while you use it.",
+        .accessibility: "Lets Yakitori detect that you are active while another app is frontmost. Only activity timestamps are recorded; what you type is never saved.",
+        .wordAutomation: "Lets Yakitori ask Microsoft Word or Pages for the active document and its exact word count. Document text is never read or stored.",
         .fileAccess: "Only used for files or folders you explicitly select. Full Disk Access is never requested.",
         .notifications: "Used to deliver goal, streak, and milestone notifications. Optional.",
         .launchAtLogin: "Allows background tracking to begin automatically after you log in."
