@@ -83,33 +83,15 @@ public final class ProjectAssociationService: ProjectResolving {    private let 
 }
 
 public enum AppPaths {
-    private static let currentFolderName = "Yakitori"
-    private static let legacyFolderName = "WritingTracker"
+    private static let folderName = "Yakitori"
     private static let databaseFileName = "WritingTracker.sqlite"
 
-    private static var baseDirectory: URL {
-        FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
-            ?? FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Library/Application Support")
-    }
-
-    /// Resolves the storage directory, migrating a pre-rename "WritingTracker"
-    /// folder to "Yakitori" the first time it is used. If the move fails the
-    /// legacy directory is used so no data is lost.
     public static var applicationSupportDirectory: URL {
-        let fileManager = FileManager.default
-        let current = baseDirectory.appendingPathComponent(currentFolderName, isDirectory: true)
-        let legacy = baseDirectory.appendingPathComponent(legacyFolderName, isDirectory: true)
-        if !fileManager.fileExists(atPath: current.path), fileManager.fileExists(atPath: legacy.path) {
-            do {
-                try fileManager.moveItem(at: legacy, to: current)
-                Log.app.info("Migrated storage directory to Yakitori")
-            } catch {
-                Log.app.error("Could not migrate storage directory; using legacy path: \(error.localizedDescription, privacy: .public)")
-                return legacy
-            }
-        }
-        try? fileManager.createDirectory(at: current, withIntermediateDirectories: true)
-        return current
+        let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
+            ?? FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Library/Application Support")
+        let dir = base.appendingPathComponent(folderName, isDirectory: true)
+        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        return dir
     }
 
     public static var databaseURL: URL {

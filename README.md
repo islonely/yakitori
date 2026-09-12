@@ -98,9 +98,6 @@ The database lives at:
 ~/Library/Application Support/Yakitori/WritingTracker.sqlite
 ```
 
-(A pre-rename `WritingTracker` folder is migrated automatically the first time
-the app launches; if the move fails, the old folder is used so no data is lost.)
-
 Backups are written to `.../Yakitori/Backups/`.
 
 ---
