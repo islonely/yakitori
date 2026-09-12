@@ -1,0 +1,46 @@
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Xcode
+build/
+DerivedData/
+*.xcodeproj/xcuserdata/
+*.xcworkspace/xcuserdata/
+*.xcuserstate
+*.moved-aside
+
+# Swift Package Manager
+.swiftpm/
+.build/
+Package.resolved
+*.xcworkspace
+
+# App bundles / artifacts
+dist/
+*.app
+*.dSYM
+*.ipa
+*.dmg
+
+# Databases (local runtime data should never be committed)
+*.sqlite
+*.sqlite3
+*.sqlite-wal
+*.sqlite-shm
+*.db
+
+# Logs
+*.log
+
+# Environment / secrets
+.env
+.env.*
+*.p12
+*.cer
+*.mobileprovision
+
+# Editor
+.vscode/
+.idea/
