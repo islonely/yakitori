@@ -64,31 +64,52 @@ Time-only applications show "Word count unavailable" rather than a guess.
 - **Dedicated Privacy screen**: a plain-language explanation of what is tracked,
   how AppleScript is used to read word counts, and which macOS prompts may appear.
 - **CSV/JSON export**, verified database backups, and safe destructive operations.
-- **Privacy by design**: no manuscript text, keystrokes, clipboard, screenshots, or cloud.
+- **Privacy by design**: no manuscript text, keystrokes, clipboard, or screenshots.
 
 ---
 
-## Requirements
+## Building from source
 
-- macOS 13 or later
-- Xcode 15+ / Swift 5.9+ toolchain
-- The Swift package has **no third-party dependencies** (SQLite is a system library).
+### Dependencies
 
-## Build & run
+Yakitori has **no third-party dependencies**. There is nothing to install with
+Homebrew, CocoaPods, or a package manager. It links only Apple system frameworks:
+
+- **SQLite3** (system library) for local storage
+- **SwiftUI**, **AppKit** and **Charts** for the interface
+- **Carbon** (global hotkey), **ApplicationServices** (Accessibility),
+  **ServiceManagement** (launch at login), **UserNotifications**
+
+### Requirements
+
+- macOS 13 (Ventura) or later
+- Xcode 15 or later, or the Swift 5.9+ command-line toolchain with the macOS SDK
+- No external packages are downloaded at any point
+
+### Build and run
 
 ```bash
-# Build and test the core library and app
+# Compile and run the test suite
 swift build
 swift test
 
-# Build a launchable .app bundle (recommended for permissions/login item)
+# Build a launchable .app bundle and open it
 ./Scripts/build-app.sh release
 open dist/Yakitori.app
 ```
 
+`Scripts/build-app.sh` compiles a release build, assembles `dist/Yakitori.app`
+with its `Info.plist` and resource bundle, and ad-hoc signs it. No Apple
+Developer account is required.
+
 Yakitori is a menu bar utility (`LSUIElement`), so it has no Dock icon until the
 dashboard is open. Click the flame icon in the menu bar to open the popover, then
 **Dashboard**.
+
+On first run macOS may ask for **Accessibility** (activity detection) and
+**Automation** (to read Word/Pages word counts). Both are optional; the app keeps
+working without them. Because development builds are ad-hoc signed, permissions
+may need to be re-granted after rebuilding.
 
 The database lives at:
 
@@ -209,5 +230,5 @@ export, backup, and destructive-operation safety.
   an Xcode project, which the current Swift Package + build-script packaging does
   not produce.
 - Widgets, cloud sync, accounts, AI analysis and monetization enforcement are
-  intentionally not implemented (roadmap phases scheduled for later), though
+  not implemented yet (roadmap phases scheduled for later), though
   `Entitlement`/`FeatureFlags` abstractions exist.

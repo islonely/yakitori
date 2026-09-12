@@ -29,8 +29,6 @@ struct PrivacyView: View {
             SectionHeader(title: "The short version")
             Text("Yakitori is a writing tracker, not a writing tool. It counts how much you write and how long you write for, so it can show you progress over time. It never reads, stores, or sends your manuscript.")
                 .foregroundStyle(.secondary)
-            Text("Everything lives on this Mac. There is no account and no cloud sync.")
-                .foregroundStyle(.secondary)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .cardStyle()
@@ -57,7 +55,7 @@ struct PrivacyView: View {
             symbol: "xmark.circle",
             tint: .red,
             items: [
-                "Your manuscript text — it is never read or stored",
+                "Your manuscript text (never read or stored)",
                 "Individual keystrokes or what you type",
                 "Your clipboard",
                 "Screenshots or screen recordings",
@@ -70,7 +68,7 @@ struct PrivacyView: View {
     private var appleScriptSection: some View {
         VStack(alignment: .leading, spacing: 12) {
             SectionHeader(title: "How it reads a word count (AppleScript)")
-            Text("macOS includes a built-in automation system called AppleScript that lets apps securely ask each other for information. Yakitori uses it — and only it — to ask Microsoft Word or Pages two things: which document is open, and how many words it contains. Those apps answer with a name and a number.")
+            Text("macOS includes a built-in automation system called AppleScript that lets apps securely ask each other for information. Yakitori uses it, and only it, to ask Microsoft Word or Pages two things: which document is open, and how many words it contains. Those apps answer with a name and a number.")
             Text("That means Yakitori never has to open, parse, or read your document. Word or Pages does the counting; we only receive the result.")
             Text("AppleScript is only used for apps that support it. For apps that don't (like Scrivener, Obsidian, or a browser), Yakitori tracks time and focus only, and shows \"Word count unavailable\" rather than guessing.")
             HStack {
@@ -91,7 +89,7 @@ struct PrivacyView: View {
             prompt(
                 "Accessibility",
                 "“Yakitori would like to control this computer using accessibility features.”",
-                "Lets Yakitori notice when you're actively typing (a timestamp only — never the keys). Without it, time tracking still works, but it can't tell active writing from being idle."
+                "Lets Yakitori notice when you're actively typing (a timestamp only, never the keys). Without it, time tracking still works, but it can't tell active writing from being idle."
             )
             Divider()
             prompt(
@@ -109,7 +107,7 @@ struct PrivacyView: View {
             prompt(
                 "Login Items",
                 "“Yakitori” appears under Login Items.",
-                "Only added if you enable Launch at Login, so tracking can resume after a restart. Purely a setting — there is no prompt."
+                "Only added if you enable Launch at Login, so tracking can resume after a restart. Purely a setting; there is no prompt."
             )
             HStack(spacing: 10) {
                 Button("Open Privacy & Security") {
@@ -128,7 +126,7 @@ struct PrivacyView: View {
     private var dataSection: some View {
         VStack(alignment: .leading, spacing: 10) {
             SectionHeader(title: "Where your data lives")
-            Text("Your statistics are stored in a local database on this Mac. Nothing is uploaded, and no account is required.")
+            Text("Your statistics are stored in a local database on this Mac.")
                 .foregroundStyle(.secondary)
             Text(verbatim: AppPaths.databaseURL.path)
                 .font(.system(.caption, design: .monospaced))
