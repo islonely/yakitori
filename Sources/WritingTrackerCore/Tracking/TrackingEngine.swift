@@ -78,6 +78,9 @@ public final class TrackingEngine {
     private let activityMonitor = ActivityMonitor()
     private let sleepMonitor = SystemSleepMonitor()
     private let timeChangeMonitor = TimeChangeMonitor()
+    private let keystrokeMonitor = KeystrokeMonitor()
+    /// Session-scoped, in-memory only. Never persisted; reset at session end.
+    private let keystrokeWordCounter = KeystrokeWordCounter()
 
     // MARK: State (accessed only on `queue`)
     private let queue = DispatchQueue(label: "com.writingtracker.engine")
@@ -175,6 +178,7 @@ public final class TrackingEngine {
             sleepMonitor.stop()
             timeChangeMonitor.stop()
             stopTimers()
+            stopKeystrokeCaptureLocked()
             refreshSnapshotLocked()
             Log.tracking.info("Tracking engine stopped")
         }
@@ -308,6 +312,7 @@ public final class TrackingEngine {
         stateMachine.onSessionBegan = { [weak self] _, _ in
             guard let self else { return }
             self.lastWordCount = nil
+            self.keystrokeWordCounter.reset()
             self.recordEventLocked(type: .sessionStarted, at: self.dateProvider.now)
         }
         stateMachine.onTransition = { [weak self] transition in
@@ -327,6 +332,7 @@ public final class TrackingEngine {
         settings = (try? settingsRepository.load()) ?? settings
         stateMachine.policy = SessionPolicy.policy(for: settings.trackingMode, inactivity: settings.inactivityTimeout)
         applications = (try? applicationRepository.all()) ?? []
+        configureKeystrokeCaptureLocked()
     }
 
     private func registerMonitors() {
@@ -393,6 +399,37 @@ public final class TrackingEngine {
         checkpointTimer?.cancel(); checkpointTimer = nil
         wordCountTimer?.cancel(); wordCountTimer = nil
         eventFlushTimer?.cancel(); eventFlushTimer = nil
+    }
+
+    // MARK: - Private: keystroke word-count estimation
+
+    /// Starts or stops the listen-only keyboard monitor according to settings and
+    /// Accessibility availability. The captured characters only ever reach the
+    /// in-memory `keystrokeWordCounter`.
+    private func configureKeystrokeCaptureLocked() {
+        let shouldCapture = settings.transientKeystrokeTrackingEnabled && keystrokeMonitor.isAvailable
+        if shouldCapture, !keystrokeMonitor.isCapturing {
+            keystrokeMonitor.onInput = { [weak self] input in
+                self?.queue.async { self?.handleKeystrokeLocked(input) }
+            }
+            keystrokeMonitor.start()
+        } else if !shouldCapture, keystrokeMonitor.isCapturing {
+            stopKeystrokeCaptureLocked()
+        }
+    }
+
+    private func stopKeystrokeCaptureLocked() {
+        keystrokeMonitor.onInput = nil
+        keystrokeMonitor.stop()
+        keystrokeWordCounter.reset()
+    }
+
+    private func handleKeystrokeLocked(_ input: KeystrokeInput) {
+        guard settings.transientKeystrokeTrackingEnabled else { return }
+        guard stateMachine.isSessionOpen else { return }
+        // Native word counts always take precedence.
+        guard currentAdapter?.capabilities.wordCount != true else { return }
+        keystrokeWordCounter.ingest(input)
     }
 
     // MARK: - Private: event handling
@@ -475,6 +512,10 @@ public final class TrackingEngine {
 
     private func tickLocked() {
         let now = dateProvider.now
+        // If Secure Input turns on mid-session, discard anything buffered.
+        if KeystrokeMonitor.isSecureInputEnabled, keystrokeWordCounter.bufferedCharacterCount > 0 {
+            keystrokeWordCounter.reset()
+        }
         // Fallback activity detection using the system idle counter. This keeps
         // inactivity handling working when Accessibility is not granted.
         let idle = idleProvider.secondsSinceLastInput()
@@ -635,15 +676,37 @@ public final class TrackingEngine {
     }
 
     private func persistEndedSessionLocked() {
-        guard let session = stateMachine.session else { return }
+        guard var session = stateMachine.session else { return }
+        applyWordCountProvenanceLocked(to: &session)
+        // The transient buffer is destroyed as soon as the session ends.
+        keystrokeWordCounter.reset()
         // Discard trivial focus-only blips that contain no writing time or words.
         let isTrivial = session.activeSeconds < 1 && session.focusSeconds < 1 && (session.netWordChange ?? 0) == 0
         if !isTrivial {
             try? sessionRepository.upsert(session)
             rebuildAggregatesLocked(touching: session)
+            if let projectID = session.projectID {
+                ProjectWordCountCalculator.recompute(projectID: projectID, database: database)
+            }
         }
         stateMachine.resetToIdle()
         flushEventsLocked()
+    }
+
+    /// Records where the final word counts came from. Native counts win; otherwise
+    /// the session-scoped keystroke estimate is attached and labelled.
+    private func applyWordCountProvenanceLocked(to session: inout Session) {
+        if session.startingWordCount != nil || session.endingWordCount != nil {
+            session.wordCountSource = .nativeAdapter
+            return
+        }
+        guard settings.transientKeystrokeTrackingEnabled else { return }
+        let estimate = keystrokeWordCounter.estimate
+        guard !estimate.isEmpty else { return }
+        session.wordsAdded = estimate.wordsAdded
+        session.wordsRemoved = estimate.wordsRemoved
+        session.netWordChange = estimate.netWordChange
+        session.wordCountSource = .keystrokeEstimate
     }
 
     private func sessionExistsLocked(id: String) -> Bool {

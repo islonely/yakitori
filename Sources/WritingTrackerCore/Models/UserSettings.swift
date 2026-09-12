@@ -38,6 +38,9 @@ public struct UserSettings: Codable, Hashable, Sendable {
     public var menuBarShowsWordCount: Bool
     public var appearance: AppAppearance
     public var automaticProjectMatching: Bool
+    /// When true, word counts for apps without a native count are estimated from
+    /// a session-scoped, in-memory keystroke buffer (never persisted).
+    public var transientKeystrokeTrackingEnabled: Bool
     public var schemaVersion: Int
 
     public init(
@@ -61,6 +64,7 @@ public struct UserSettings: Codable, Hashable, Sendable {
         menuBarShowsWordCount: Bool = true,
         appearance: AppAppearance = .system,
         automaticProjectMatching: Bool = true,
+        transientKeystrokeTrackingEnabled: Bool = true,
         schemaVersion: Int = 1
     ) {
         self.trackingMode = trackingMode
@@ -83,6 +87,7 @@ public struct UserSettings: Codable, Hashable, Sendable {
         self.menuBarShowsWordCount = menuBarShowsWordCount
         self.appearance = appearance
         self.automaticProjectMatching = automaticProjectMatching
+        self.transientKeystrokeTrackingEnabled = transientKeystrokeTrackingEnabled
         self.schemaVersion = schemaVersion
     }
 

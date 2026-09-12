@@ -177,13 +177,16 @@ struct SettingsView: View {
     private var privacySection: some View {
         settingsCard("Privacy", subtitle: "Writing Tracker tracks activity, not content") {
             privacyRow("Manuscript text", "Never stored")
-            privacyRow("Keyboard contents", "Never stored")
+            privacyRow("Typed characters", "In memory only during a session; never stored")
             privacyRow("Clipboard", "Not accessed")
             privacyRow("Screenshots", "Not taken")
             privacyRow("Cloud sync", "Disabled")
             privacyRow("Analytics", "Local only")
+            Toggle("Estimate word counts from typing for apps without a word count", isOn: binding(\.transientKeystrokeTrackingEnabled))
+            Text("When enabled, typed characters are briefly buffered in memory during a session to estimate words added and removed for applications that do not report a word count (for example Obsidian or a browser editor). The buffer is discarded the moment the session ends and is never written to disk, logs, exports, or telemetry. It is never captured while a password field is active. Native counts from apps like Word always take precedence.")
+                .font(.caption).foregroundStyle(.secondary)
             Toggle("Enable optional diagnostics", isOn: binding(\.diagnosticsEnabled))
-            Text("Diagnostics, when enabled, never include document names, paths, or manuscript text.")
+            Text("Diagnostics, when enabled, never include document names, paths, manuscript text, or typed characters.")
                 .font(.caption).foregroundStyle(.secondary)
         }
     }

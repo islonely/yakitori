@@ -442,6 +442,25 @@ It should NOT store:
 "This is the actual text the user typed."
 ```
 
+### Transient word-count estimation for applications without native counts
+
+Some writing applications expose a native word count (Microsoft Word, and Pages
+via AppleScript). Others do not. To keep word-count analytics useful across all
+applications while preserving the privacy model, the tracker may, **only when no
+native count is available**, keep a **session-scoped, in-memory** buffer of typed
+characters to estimate words added and removed — including deletions via
+backspace, option+delete and cmd+delete.
+
+This buffer is not "storage":
+
+- It exists only in memory, only during an active session.
+- It is destroyed when the session ends, tracking stops, or the app terminates.
+- It is never written to the database, logs, exports, diagnostics or telemetry.
+- It is never populated while Secure Input is active (password fields).
+- Its derived numbers are labelled **estimated**, and native word counts always
+  take precedence.
+- The user can disable the feature at any time.
+
 Privacy should be a major selling point.
 
 The application should be able to say:
@@ -1927,7 +1946,7 @@ Default behavior:
 
 ### Do not store
 
-- actual keystrokes
+- actual keystroke text (a transient in-memory buffer may be used to *estimate* words for applications without native counts, but it is never persisted — see section 12)
 - passwords
 - clipboard contents
 - arbitrary screen contents
@@ -3942,11 +3961,13 @@ This should be treated as a core architectural requirement rather than a later e
 
 # 146. Critical Privacy Requirement
 
-The application should never need to record the actual content of keyboard input.
+The application should never **persist** the actual content of keyboard input.
 
-Use keyboard events only as signals that activity occurred.
-
-The system should store timestamps and activity metadata rather than keystroke contents.
+Use keyboard events as activity signals. For applications without a native word
+count, a session-scoped in-memory buffer may be used transiently to estimate
+words added and removed (section 12); it is destroyed at session end and never
+written anywhere. The system stores timestamps, activity metadata and aggregate
+word-count estimates rather than keystroke contents.
 
 ---
 

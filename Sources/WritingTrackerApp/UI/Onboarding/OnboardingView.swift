@@ -40,7 +40,7 @@ struct OnboardingView: View {
         stepLayout(
             symbol: "square.and.pencil",
             title: "Track your writing without changing where you write",
-            body: "Writing Tracker runs quietly while you write in apps like Microsoft Word. It records activity, timing, and word-count changes — never the words you type.\n\n• No manuscript text\n• No keystrokes\n• No screenshots\n• Data stays on your Mac"
+            body: "Writing Tracker runs quietly while you write in apps like Microsoft Word. It records activity, timing, and word-count changes without storing your manuscript.\n\n• No manuscript text stored\n• No keystrokes stored (word estimates for some apps use a session-only buffer that is discarded when the session ends)\n• No screenshots\n• Data stays on your Mac"
         )
     }
 

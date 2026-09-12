@@ -238,6 +238,13 @@ public enum Migrations {
                 updated_at REAL NOT NULL
             );
             """)
+        },
+
+        Migration(version: 2, name: "add_word_count_source") { db in
+            // Additive, non-destructive: records whether a session's word counts
+            // came from a native adapter, an in-memory keystroke estimate, or a
+            // manual entry.
+            try db.execute("ALTER TABLE sessions ADD COLUMN word_count_source TEXT NOT NULL DEFAULT 'none';")
         }
     ]
 }

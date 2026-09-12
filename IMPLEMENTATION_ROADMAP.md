@@ -40,13 +40,13 @@ These rules apply throughout implementation.
 
 1. **Do not create a proprietary writing editor.**
 2. **Do not require the user to write inside the tracker.**
-3. **Do not record typed characters.**
-4. **Do not store keyboard event contents.**
+3. **Do not persist typed characters.** In-memory keystroke buffering is permitted *only* as a transient, session-scoped mechanism to estimate words added/removed for writing applications that do not expose a native word count. The buffer must be destroyed when the session ends, when tracking stops, or when the application terminates, and must never be written to the database, logs, exports, telemetry, or any file.
+4. **Do not store keyboard event contents** beyond that transient buffer.
 5. **Do not capture screenshots.**
 6. **Do not read the clipboard.**
 7. **Do not require Screen Recording permission.**
 8. **Do not require Full Disk Access.**
-9. **Do not equate keyboard activity with words written.**
+9. **Do not equate keyboard activity with words written.** A keystroke-derived count is an *estimate* and must be labelled as such; native word counts always take precedence.
 10. **Do not treat net word-count change as exact words typed.**
 11. **The GUI must not be responsible for background tracking.**
 12. **Closing the GUI must not stop tracking.**
@@ -774,6 +774,26 @@ Never store:
 - modifier combinations that could reveal content
 - passwords
 - clipboard contents
+
+### Transient keystroke word-count estimation (permitted exception)
+
+For writing applications whose adapter does **not** provide a native word count,
+the tracker may keep a **session-scoped, in-memory** buffer of typed characters
+solely to estimate words added and removed, including deletion operations
+(backspace, option+delete, cmd+delete, forward delete). This is the only
+permitted handling of typed content and is subject to all of the following:
+
+- The buffer lives only in memory. It is never written to the SQLite database,
+  log files, exports, diagnostics, telemetry, or any other file.
+- It is created when a session begins and destroyed when the session ends, when
+  tracking stops, or when the application terminates.
+- It is never populated while Secure Input is active (for example, a password
+  field), and it is discarded immediately if Secure Input becomes active.
+- It is used only when the active application's adapter does not provide a native
+  word count. Native word counts always take precedence.
+- Derived `wordsAdded`, `wordsRemoved` and `netWordChange` values are estimates
+  and must be labelled as estimated in the data model and the UI.
+- The feature is disclosed to the user and can be disabled.
 
 The monitor should emit a generic activity event:
 
@@ -1802,6 +1822,11 @@ The database must not contain:
 - Screenshots.
 - Keystroke sequences.
 - Content-derived analytics that reveal manuscript text.
+
+The database **may** contain aggregate word-count estimates derived from the
+transient keystroke buffer described in section 10 (for example
+`wordsAdded`, `wordsRemoved`, `netWordChange` and a source flag marking them as
+estimated). It must never contain the buffered characters themselves.
 
 Logs must follow the same rule.
 
