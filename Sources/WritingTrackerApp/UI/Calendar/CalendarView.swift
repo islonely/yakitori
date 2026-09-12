@@ -24,6 +24,15 @@ enum HeatmapMetric: String, CaseIterable, Identifiable {
     }
 }
 
+/// Precomputed heatmap cell. Building these once avoids the O(n²) behaviour of
+/// recomputing the lookup dictionary and maximum for every one of the ~370 cells.
+private struct HeatmapCell: Identifiable {
+    let id: String
+    let date: Date
+    let stat: DailyStatistics?
+    let intensity: Double
+}
+
 struct CalendarView: View {
     @EnvironmentObject private var state: AppState
     @State private var metric: HeatmapMetric = .words
@@ -32,38 +41,9 @@ struct CalendarView: View {
     private var statistics: StatisticsService { state.container.statistics }
     private var calendar: CalendarContext { statistics.calendar }
 
-    private var days: [DailyStatistics] {
-        let end = calendar.startOfDay(for: Date())
-        let start = calendar.addingDays(-370, to: end)
-        return statistics.dailyStatistics(from: start, to: end)
-    }
-
-    private var byKey: [String: DailyStatistics] {
-        Dictionary(uniqueKeysWithValues: days.map { ($0.dayKey, $0) })
-    }
-
-    private var maxValue: Double {
-        max(1, days.map { max(0, metric.value($0)) }.max() ?? 1)
-    }
-
-    private var weeks: [[Date]] {
-        guard let first = days.first?.date, let last = days.last?.date else { return [] }
-        let gridStart = calendar.startOfWeek(for: first)
-        var result: [[Date]] = []
-        var current: [Date] = []
-        for day in calendar.days(from: gridStart, through: last) {
-            current.append(day)
-            if current.count == 7 {
-                result.append(current)
-                current = []
-            }
-        }
-        if !current.isEmpty { result.append(current) }
-        return result
-    }
-
     var body: some View {
-        ScrollView {
+        let weeks = buildHeatmap()
+        return ScrollView {
             VStack(alignment: .leading, spacing: 20) {
                 HStack {
                     Text("Calendar").font(.largeTitle.weight(.semibold))
@@ -74,7 +54,7 @@ struct CalendarView: View {
                     .pickerStyle(.segmented)
                     .frame(width: 320)
                 }
-                heatmap
+                heatmap(weeks)
                 legend
                 if let selectedDay {
                     dailyDetail(selectedDay)
@@ -88,7 +68,33 @@ struct CalendarView: View {
         .navigationTitle("Calendar")
     }
 
-    private var heatmap: some View {
+    /// Builds the whole heatmap model in a single O(n) pass.
+    private func buildHeatmap() -> [[HeatmapCell]] {
+        let end = calendar.startOfDay(for: Date())
+        let start = calendar.addingDays(-370, to: end)
+        let days = statistics.dailyStatistics(from: start, to: end)
+        let byKey = Dictionary(uniqueKeysWithValues: days.map { ($0.dayKey, $0) })
+        let maxValue = max(1, days.map { max(0, metric.value($0)) }.max() ?? 1)
+
+        guard let first = days.first?.date, let last = days.last?.date else { return [] }
+        let gridStart = calendar.startOfWeek(for: first)
+        var weeks: [[HeatmapCell]] = []
+        var current: [HeatmapCell] = []
+        for day in calendar.days(from: gridStart, through: last) {
+            let key = calendar.dayKey(for: day)
+            let stat = byKey[key]
+            let value = stat.map { max(0, metric.value($0)) } ?? 0
+            current.append(HeatmapCell(id: key, date: day, stat: stat, intensity: value / maxValue))
+            if current.count == 7 {
+                weeks.append(current)
+                current = []
+            }
+        }
+        if !current.isEmpty { weeks.append(current) }
+        return weeks
+    }
+
+    private func heatmap(_ weeks: [[HeatmapCell]]) -> some View {
         ScrollView(.horizontal, showsIndicators: true) {
             HStack(alignment: .top, spacing: 3) {
                 VStack(alignment: .trailing, spacing: 3) {
@@ -103,8 +109,8 @@ struct CalendarView: View {
                 }
                 ForEach(Array(weeks.enumerated()), id: \.offset) { _, week in
                     VStack(spacing: 3) {
-                        ForEach(week, id: \.self) { day in
-                            cell(for: day)
+                        ForEach(week) { cell in
+                            cellView(cell)
                         }
                     }
                 }
@@ -114,30 +120,24 @@ struct CalendarView: View {
         .cardStyle()
     }
 
-    private func cell(for day: Date) -> some View {
-        let stat = byKey[calendar.dayKey(for: day)]
-        let value = stat.map { max(0, metric.value($0)) } ?? 0
-        let intensity = value / maxValue
-        return RoundedRectangle(cornerRadius: 2.5)
-            .fill(HeatmapColor.color(intensity: intensity))
+    private func cellView(_ cell: HeatmapCell) -> some View {
+        RoundedRectangle(cornerRadius: 2.5)
+            .fill(HeatmapColor.color(intensity: cell.intensity))
             .frame(width: 13, height: 13)
             .overlay(
                 RoundedRectangle(cornerRadius: 2.5)
-                    .strokeBorder(selectedDay?.dayKey == calendar.dayKey(for: day) ? Color.primary : Color.clear, lineWidth: 1.5)
+                    .strokeBorder(selectedDay?.dayKey == cell.id ? Color.primary : Color.clear, lineWidth: 1.5)
             )
-            .help(tooltip(day: day, stat: stat))
+            .help(tooltip(cell))
             .onTapGesture {
-                if let stat {
-                    selectedDay = stat
-                } else {
-                    selectedDay = DailyStatistics(aggregate: DailyAggregate(dayKey: calendar.dayKey(for: day), date: day))
-                }
+                selectedDay = cell.stat
+                    ?? DailyStatistics(aggregate: DailyAggregate(dayKey: cell.id, date: cell.date))
             }
     }
 
-    private func tooltip(day: Date, stat: DailyStatistics?) -> String {
-        guard let stat else { return Format.shortDayYear.string(from: day) + ": no activity" }
-        return "\(Format.shortDayYear.string(from: day)): \(Format.int(stat.netWords)) words, \(Format.duration(stat.activeSeconds))"
+    private func tooltip(_ cell: HeatmapCell) -> String {
+        guard let stat = cell.stat else { return Format.shortDayYear.string(from: cell.date) + ": no activity" }
+        return "\(Format.shortDayYear.string(from: cell.date)): \(Format.int(stat.netWords)) words, \(Format.duration(stat.activeSeconds))"
     }
 
     private var legend: some View {

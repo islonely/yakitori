@@ -58,6 +58,7 @@ public final class SessionService {
     private let sessionRepository: SessionRepository
     private let projectRepository: ProjectRepository
     private let documentRepository: DocumentRepository
+    private let snapshotRepository: WordCountSnapshotRepository
     private let statistics: StatisticsService
 
     public init(database: Database, statistics: StatisticsService) {
@@ -65,6 +66,7 @@ public final class SessionService {
         self.sessionRepository = SessionRepository(database: database)
         self.projectRepository = ProjectRepository(database: database)
         self.documentRepository = DocumentRepository(database: database)
+        self.snapshotRepository = WordCountSnapshotRepository(database: database)
         self.statistics = statistics
     }
 
@@ -89,13 +91,20 @@ public final class SessionService {
     }
 
     public func deleteSession(id: String) throws {
+        let projectID = try sessionRepository.find(id: id)?.projectID
         try sessionRepository.delete(id: id)
-        try statistics.rebuildDailyAggregates()
+        statistics.rebuildDailyAggregates()
+        refreshProjectWordCount(projectID: projectID)
     }
 
     public func updateSession(_ session: Session) throws {
+        let previousProjectID = try sessionRepository.find(id: session.id)?.projectID
         try sessionRepository.update(session)
         try rebuildAffected(session)
+        refreshProjectWordCount(projectID: session.projectID)
+        if previousProjectID != session.projectID {
+            refreshProjectWordCount(projectID: previousProjectID)
+        }
     }
 
     public func setNotes(sessionID: String, notes: String?) throws {
@@ -112,8 +121,13 @@ public final class SessionService {
 
     public func assignProject(sessionID: String, projectID: String?) throws {
         guard var session = try sessionRepository.find(id: sessionID) else { return }
+        let previousProjectID = session.projectID
         session.projectID = projectID
         try sessionRepository.update(session)
+        refreshProjectWordCount(projectID: projectID)
+        if previousProjectID != projectID {
+            refreshProjectWordCount(projectID: previousProjectID)
+        }
     }
 
     public func correctDuration(sessionID: String, activeSeconds: Double) throws {
@@ -167,7 +181,37 @@ public final class SessionService {
         )
         try sessionRepository.insert(session)
         try rebuildAffected(session)
+        refreshProjectWordCount(projectID: projectID)
         return session
+    }
+
+    /// Recomputes a project's current word count from its latest document snapshot
+    /// (absolute count) or, when no snapshots exist, from its starting count plus
+    /// the net change of its sessions. This keeps project goals and milestones in
+    /// sync after manual entries, edits, assignments and deletions.
+    public func refreshProjectWordCount(projectID: String?) {
+        guard let projectID, var project = try? projectRepository.find(id: projectID) else { return }
+        let snapshots = (try? snapshotRepository.snapshots(forProject: projectID)) ?? []
+        if let latest = snapshots.last {
+            project.currentWordCount = latest.wordCount
+        } else {
+            let sessions = (try? sessionRepository.sessions(forProject: projectID)) ?? []
+            let net = sessions.filter { $0.endedAt != nil }.reduce(0) { $0 + ($1.netWordChange ?? 0) }
+            project.currentWordCount = project.startingWordCount + net
+        }
+        try? projectRepository.update(project)
+        evaluateMilestones(projectID: projectID, currentWordCount: project.currentWordCount)
+    }
+
+    private func evaluateMilestones(projectID: String, currentWordCount: Int) {
+        let repository = MilestoneRepository(database: database)
+        let milestones = (try? repository.milestones(forProject: projectID)) ?? []
+        for var milestone in milestones where milestone.metric == .words && milestone.completedAt == nil {
+            if let target = milestone.targetValue, Double(currentWordCount) >= target {
+                milestone.completedAt = Date()
+                try? repository.update(milestone)
+            }
+        }
     }
 
     private func rebuildAffected(_ session: Session) throws {

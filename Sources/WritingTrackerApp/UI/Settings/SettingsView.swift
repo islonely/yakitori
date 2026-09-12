@@ -1,5 +1,6 @@
 import SwiftUI
 import AppKit
+import UniformTypeIdentifiers
 import WritingTrackerCore
 
 struct SettingsView: View {
@@ -74,9 +75,9 @@ struct SettingsView: View {
     private var applicationsSection: some View {
         let apps = (try? state.container.applicationRepository.all()) ?? []
         let wordState = state.permissionStatus(for: .wordAutomation)
-        return settingsCard("Applications") {
+        return settingsCard("Applications", subtitle: "Choose which writing applications count toward automatic tracking") {
             if apps.isEmpty {
-                Text("No writing applications detected yet.").foregroundStyle(.secondary)
+                Text("No writing applications added yet.").foregroundStyle(.secondary)
             } else {
                 ForEach(apps) { app in
                     VStack(alignment: .leading, spacing: 4) {
@@ -95,6 +96,13 @@ struct SettingsView: View {
                             if app.adapterType == .word {
                                 PermissionBadge(state: wordState)
                             }
+                            Button {
+                                removeApplication(app)
+                            } label: {
+                                Image(systemName: "trash").foregroundStyle(.secondary)
+                            }
+                            .buttonStyle(.plain)
+                            .help("Remove this application")
                         }
                         Text(capabilitiesText(app))
                             .font(.caption2).foregroundStyle(.secondary)
@@ -102,9 +110,18 @@ struct SettingsView: View {
                     Divider()
                 }
             }
-            Button("Refresh detected applications") {
-                seedApplications()
+            HStack {
+                Button {
+                    addCustomApplication()
+                } label: {
+                    Label("Add Application…", systemImage: "plus")
+                }
+                Button("Refresh detected applications") {
+                    seedApplications()
+                }
             }
+            Text("Any app can be tracked for focus/activity. Document and word-count integration depends on the app.")
+                .font(.caption).foregroundStyle(.secondary)
         }
     }
 
@@ -312,6 +329,67 @@ struct SettingsView: View {
             try? state.container.applicationRepository.insert(record)
         }
         state.refresh()
+    }
+
+    /// Lets the user add any installed application, even one not on the built-in
+    /// list. Unknown apps use the generic focus/activity adapter.
+    private func addCustomApplication() {
+        let panel = NSOpenPanel()
+        panel.canChooseFiles = true
+        panel.canChooseDirectories = false
+        panel.allowsMultipleSelection = false
+        panel.allowedContentTypes = [.application]
+        panel.directoryURL = URL(fileURLWithPath: "/Applications")
+        panel.message = "Choose a writing application to track."
+        panel.prompt = "Add"
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        guard let bundle = Bundle(url: url), let bundleID = bundle.bundleIdentifier else {
+            state.alertMessage = "That item is not a valid application bundle."
+            return
+        }
+
+        if let existing = try? state.container.applicationRepository.find(bundleIdentifier: bundleID) {
+            var updated = existing
+            updated.enabled = true
+            updated.automaticTrackingEnabled = true
+            updated.updatedAt = Date()
+            try? state.container.applicationRepository.update(updated)
+            selectApplication(existing.id)
+            state.refresh()
+            return
+        }
+
+        let displayName = (bundle.infoDictionary?["CFBundleDisplayName"] as? String)
+            ?? (bundle.infoDictionary?["CFBundleName"] as? String)
+            ?? url.deletingPathExtension().lastPathComponent
+
+        let app = WritingApplication(
+            bundleIdentifier: bundleID,
+            displayName: displayName,
+            adapterType: AdapterRegistry.defaultAdapterType(forBundleIdentifier: bundleID),
+            category: .writing,
+            enabled: true,
+            automaticTrackingEnabled: true
+        )
+        try? state.container.applicationRepository.insert(app)
+        selectApplication(app.id)
+        state.refresh()
+    }
+
+    private func removeApplication(_ app: WritingApplication) {
+        try? state.container.applicationRepository.delete(id: app.id)
+        state.updateSettings { settings in
+            settings.selectedApplicationIDs.removeAll { $0 == app.id }
+        }
+        state.refresh()
+    }
+
+    private func selectApplication(_ id: String) {
+        state.updateSettings { settings in
+            if !settings.selectedApplicationIDs.contains(id) {
+                settings.selectedApplicationIDs.append(id)
+            }
+        }
     }
 
     private func weekdayOrder() -> [Int] {

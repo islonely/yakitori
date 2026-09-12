@@ -121,6 +121,37 @@ final class SessionServiceTests: XCTestCase {
         super.tearDown()
     }
 
+    func testManualSessionUpdatesProjectWordCount() throws {
+        let projectService = ProjectService(database: database)
+        let project = try projectService.createProject(title: "Goal Project", targetWordCount: 1000, startingWordCount: 0)
+        let service = SessionService(database: database, statistics: statistics)
+        let date = TestSupport.date("2026-09-08T09:00:00-04:00")
+        try service.addManualSession(projectID: project.id, date: date, words: 500, activeSeconds: 1800)
+        XCTAssertEqual(try projectService.project(id: project.id)?.currentWordCount, 500)
+    }
+
+    func testAssigningSessionUpdatesProjectWordCount() throws {
+        let projectService = ProjectService(database: database)
+        let project = try projectService.createProject(title: "Assigned", targetWordCount: 1000, startingWordCount: 0)
+        let service = SessionService(database: database, statistics: statistics)
+        let date = TestSupport.date("2026-09-08T09:00:00-04:00")
+        let session = try service.addManualSession(projectID: nil, date: date, words: 300, activeSeconds: 600)
+        XCTAssertEqual(try projectService.project(id: project.id)?.currentWordCount, 0)
+        try service.assignProject(sessionID: session.id, projectID: project.id)
+        XCTAssertEqual(try projectService.project(id: project.id)?.currentWordCount, 300)
+    }
+
+    func testDeletingSessionUpdatesProjectWordCount() throws {
+        let projectService = ProjectService(database: database)
+        let project = try projectService.createProject(title: "Delete", targetWordCount: 1000, startingWordCount: 0)
+        let service = SessionService(database: database, statistics: statistics)
+        let date = TestSupport.date("2026-09-08T09:00:00-04:00")
+        let session = try service.addManualSession(projectID: project.id, date: date, words: 400, activeSeconds: 600)
+        XCTAssertEqual(try projectService.project(id: project.id)?.currentWordCount, 400)
+        try service.deleteSession(id: session.id)
+        XCTAssertEqual(try projectService.project(id: project.id)?.currentWordCount, 0)
+    }
+
     func testManualSessionEntryCreatesAggregate() throws {
         let service = SessionService(database: database, statistics: statistics)
         let project = try ProjectService(database: database).createProject(title: "Paper Project")

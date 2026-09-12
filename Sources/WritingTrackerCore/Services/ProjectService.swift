@@ -88,7 +88,8 @@ public final class ProjectService {
         try projectRepository.find(id: id)
     }
 
-    /// Recomputes a project's current word count from the latest snapshot or session.
+    /// Recomputes a project's current word count from the latest snapshot or,
+    /// failing that, from its starting count plus the net change of its sessions.
     public func recalculateCurrentWordCount(projectID: String) throws {
         guard var project = try projectRepository.find(id: projectID) else { return }
         let snapshots = try snapshotRepository.snapshots(forProject: projectID)
@@ -96,9 +97,8 @@ public final class ProjectService {
             project.currentWordCount = latest.wordCount
         } else {
             let sessions = try sessionRepository.sessions(forProject: projectID)
-            if let ending = sessions.compactMap(\.endingWordCount).max() {
-                project.currentWordCount = ending
-            }
+            let net = sessions.filter { $0.endedAt != nil }.reduce(0) { $0 + ($1.netWordChange ?? 0) }
+            project.currentWordCount = project.startingWordCount + net
         }
         try projectRepository.update(project)
         try evaluateMilestones(projectID: projectID, currentWordCount: project.currentWordCount)
