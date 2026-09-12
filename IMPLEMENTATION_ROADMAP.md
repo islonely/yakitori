@@ -1384,8 +1384,10 @@ Projects
 Goals
 Reports
 Achievements
+Community
 
 Settings
+Privacy
 ```
 
 ---
@@ -2274,7 +2276,7 @@ Do not jump ahead to Word integration before the persistence and permission arch
 
 ---
 
-# 52A. Social, Sharing and Gamification (planned — requires a backend)
+# 52A. Social, Sharing and Gamification (local placeholder implemented)
 
 The product owner wants, after 1.0:
 
@@ -2283,22 +2285,23 @@ The product owner wants, after 1.0:
   writer can be placed on after finishing a session;
 - **following** other writers and **comparing** statistics against them.
 
-**Status: not implemented.**
+**Status:** the client side and leaderboard structure are implemented behind a
+`SocialBackend` protocol, with a **local JSON placeholder** backend
+(`~/Library/Application Support/Yakitori/community.json`). Publishing is opt-in;
+only aggregate numbers are written. A "Show sample leaderboard entries" option
+populates clearly-labelled placeholder profiles.
 
-This cannot be delivered by a local-only app: leaderboards and following require
-shared, networked state. It needs:
+**Still required for real, online leaderboards:** a backend service — accounts,
+a stats-ingestion API, leaderboard queries, and a follow graph. The client
+already speaks the `CommunityData` shape, so a server can implement
+`SocialBackend` (or a remote variant) without UI changes.
 
-1. A backend service — accounts/identity, a stats-ingestion API, leaderboard
-   queries, and follow relationships.
-2. An explicit privacy model: statistics are private by default; publishing is
-   opt-in and revocable; only aggregate numbers are shared (never documents,
-   project names, or manuscript text).
+Privacy rules to preserve:
+
+1. Statistics are private by default; publishing is opt-in and revocable.
+2. Only aggregate numbers are shared — never documents, project names, paths, or
+   manuscript text.
 3. A privacy/security review before any network code ships.
-
-The client is designed to accept this later: statistics are already derived from
-local records, and a `SocialBackend` protocol should sit behind any social UI so
-a server can be added **without changing views**. Until a backend exists, no
-social UI is shown as working.
 
 # 53. Final Architectural Principle
 

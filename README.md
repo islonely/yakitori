@@ -57,7 +57,12 @@ Time-only applications show "Word count unavailable" rather than a guess.
 - **Statistics engine** for daily/weekly/monthly/yearly/lifetime totals, streaks,
   goals, productivity patterns and completion projections.
 - **Full GUI**: dashboard, statistics, calendar heatmap, sessions, projects,
-  goals, reports, achievements, settings and a Permission Center.
+  goals, reports, achievements, community, settings and a Permission Center.
+- **Optional community sharing**: opt-in leaderboards and following, built on a
+  pluggable `SocialBackend` with a local JSON placeholder until an online service
+  exists. Only aggregate numbers are ever shared.
+- **Dedicated Privacy screen**: a plain-language explanation of what is tracked,
+  how AppleScript is used to read word counts, and which macOS prompts may appear.
 - **CSV/JSON export**, verified database backups, and safe destructive operations.
 - **Privacy by design**: no manuscript text, keystrokes, clipboard, screenshots, or cloud.
 
@@ -196,6 +201,13 @@ export, backup, and destructive-operation safety.
   when the dashboard is closed) rather than as a separate XPC/LaunchAgent.
   The engine is GUI-independent and the boundary would allow extracting it later.
 - Automatic project inference is rule-based as documented; no ML inference.
+- **Community/leaderboards** currently use a local JSON placeholder
+  (`~/Library/Application Support/Yakitori/community.json`). Real, multi-user
+  leaderboards and following need a backend service; the client already speaks
+  the `CommunityData` shape so a server can be added without UI changes.
+- **Widgets are not implemented** — WidgetKit requires an app-extension target in
+  an Xcode project, which the current Swift Package + build-script packaging does
+  not produce.
 - Widgets, cloud sync, accounts, AI analysis and monetization enforcement are
   intentionally not implemented (roadmap phases scheduled for later), though
   `Entitlement`/`FeatureFlags` abstractions exist.

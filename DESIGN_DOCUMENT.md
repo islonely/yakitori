@@ -2415,9 +2415,9 @@ Do not make the product feel childish unless the user enables a gamification mod
 
 ---
 
-# 78A. Social Sharing, Leaderboards and Following (planned)
+# 78A. Social Sharing, Leaderboards and Following
 
-After 1.0, writers should optionally be able to:
+Writers can optionally:
 
 - **Publish** a snapshot of their statistics (words, active time, streaks, and
   similar aggregates) — private by default, opt-in, and revocable.
@@ -2425,16 +2425,16 @@ After 1.0, writers should optionally be able to:
   (daily/weekly/monthly words, active time, streaks, project progress).
 - **Follow** other writers and **compare** their statistics against their own.
 
-**Status: not implemented.** Online leaderboards and following require a backend
-(identity, stats ingestion, leaderboard queries, follow graph) that is out of
-scope for the local-first app. The privacy model must guarantee that only
-aggregate numbers are ever shared — never documents, project names, paths, or
-manuscript text.
+**Status:** implemented locally behind a `SocialBackend` protocol with a JSON
+placeholder (`community.json`), plus a Community screen and opt-in sharing
+controls. Only aggregate numbers are written — never documents, project names,
+paths, or manuscript text.
 
-The client is structured for this: statistics are derived from local records and
-any social surface should sit behind a `SocialBackend` protocol so a server can
-be added later without changing the UI. Until a backend exists, the social UI is
-not presented as functional.
+**Online version requires a backend** (identity, stats ingestion, leaderboard
+queries, follow graph). The client already uses the `CommunityData` shape, so a
+server can provide a remote `SocialBackend` without UI changes. A dedicated
+privacy screen explains what is tracked, how AppleScript is used, and what
+permission prompts may appear.
 
 # 79. Widgets
 

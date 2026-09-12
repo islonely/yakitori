@@ -63,6 +63,12 @@ public struct UserSettings: Codable, Hashable, Sendable {
     public var automaticProjectMatching: Bool
     /// Global shortcut to start/stop a session. Nil means disabled.
     public var globalHotkey: HotkeyConfiguration?
+    /// Community: name shown on leaderboards.
+    public var communityDisplayName: String?
+    /// Community: opt-in to publishing aggregate stats.
+    public var publishStatsEnabled: Bool
+    /// Community: show clearly-labelled sample entries (placeholder for the server).
+    public var showSampleCommunity: Bool
     public var schemaVersion: Int
 
     public init(
@@ -87,6 +93,9 @@ public struct UserSettings: Codable, Hashable, Sendable {
         appearance: AppAppearance = .system,
         automaticProjectMatching: Bool = true,
         globalHotkey: HotkeyConfiguration? = nil,
+        communityDisplayName: String? = nil,
+        publishStatsEnabled: Bool = false,
+        showSampleCommunity: Bool = false,
         schemaVersion: Int = 1
     ) {
         self.trackingMode = trackingMode
@@ -110,6 +119,9 @@ public struct UserSettings: Codable, Hashable, Sendable {
         self.appearance = appearance
         self.automaticProjectMatching = automaticProjectMatching
         self.globalHotkey = globalHotkey
+        self.communityDisplayName = communityDisplayName
+        self.publishStatsEnabled = publishStatsEnabled
+        self.showSampleCommunity = showSampleCommunity
         self.schemaVersion = schemaVersion
     }
 

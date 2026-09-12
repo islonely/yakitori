@@ -73,6 +73,9 @@ final class AppState: ObservableObject {
         container.trackingEngine.onDataChange = { [weak self] in
             Task { @MainActor in self?.refresh() }
         }
+        container.trackingEngine.onSessionEnded = { [weak self] in
+            Task { @MainActor in self?.publishCommunityStats() }
+        }
         container.permissionProvider.onChange = { [weak self] in
             Task { @MainActor in self?.refreshPermissions() }
         }
@@ -140,7 +143,22 @@ final class AppState: ObservableObject {
         settings = container.settings
         refreshPermissions()
         configureGlobalHotkey()
+        publishCommunityStats()
         refresh()
+    }
+
+    // MARK: - Community
+
+    /// Publishes the writer's aggregate stats when they have opted in.
+    func publishCommunityStats() {
+        guard settings.publishStatsEnabled else { return }
+        let trimmed = settings.communityDisplayName?.trimmingCharacters(in: .whitespacesAndNewlines)
+        let name = (trimmed?.isEmpty == false ? trimmed! : "You")
+        try? container.social.publishSelf(displayName: name)
+    }
+
+    func unpublishCommunityStats() {
+        try? container.social.removeSelf()
     }
 
     // MARK: - Global hotkey
@@ -225,7 +243,9 @@ enum SidebarSection: String, CaseIterable, Identifiable, Hashable {
     case goals
     case reports
     case achievements
+    case community
     case settings
+    case privacy
 
     var id: String { rawValue }
 
@@ -239,7 +259,9 @@ enum SidebarSection: String, CaseIterable, Identifiable, Hashable {
         case .goals: return "Goals"
         case .reports: return "Reports"
         case .achievements: return "Achievements"
+        case .community: return "Community"
         case .settings: return "Settings"
+        case .privacy: return "Privacy"
         }
     }
 
@@ -253,7 +275,9 @@ enum SidebarSection: String, CaseIterable, Identifiable, Hashable {
         case .goals: return "target"
         case .reports: return "doc.text"
         case .achievements: return "trophy"
+        case .community: return "person.3"
         case .settings: return "gearshape"
+        case .privacy: return "hand.raised"
         }
     }
 }

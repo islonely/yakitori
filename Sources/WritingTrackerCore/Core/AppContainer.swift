@@ -18,6 +18,7 @@ public final class AppContainer {
     public let dataManagement: DataManagementService
     public let notifications: NotificationService
     public let association: ProjectAssociationService
+    public let social: SocialService
     public let trackingEngine: TrackingEngine
     public let settingsRepository: SettingsRepository
     public let applicationRepository: WritingApplicationRepository
@@ -50,6 +51,7 @@ public final class AppContainer {
         self.dataManagement = DataManagementService(database: database, backupService: backup, statistics: statistics)
         self.notifications = NotificationService(database: database)
         self.association = ProjectAssociationService(database: database)
+        self.social = SocialService(database: database, statistics: statistics, dateProvider: dateProvider)
         self.trackingEngine = TrackingEngine(
             database: database,
             permissionProvider: permissionProvider,

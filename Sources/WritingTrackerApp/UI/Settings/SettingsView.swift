@@ -23,6 +23,7 @@ struct SettingsView: View {
                 scheduleSection
                 goalsSection
                 notificationsSection
+                communitySection
                 privacySection
                 PermissionCenterView()
                 dataSection
@@ -172,6 +173,45 @@ struct SettingsView: View {
             Toggle("Goal reminders", isOn: binding(\.notifyOnGoals)).disabled(!state.settings.notificationsEnabled)
             Toggle("Streak reminders", isOn: binding(\.notifyOnStreaks)).disabled(!state.settings.notificationsEnabled)
             Toggle("Milestone completions", isOn: binding(\.notifyOnMilestones)).disabled(!state.settings.notificationsEnabled)
+        }
+    }
+
+    private var communitySection: some View {
+        settingsCard("Community", subtitle: "Optional leaderboards and sharing") {
+            TextField("Display name", text: Binding(
+                get: { state.settings.communityDisplayName ?? "" },
+                set: { newValue in
+                    state.updateSettings { $0.communityDisplayName = newValue.isEmpty ? nil : newValue }
+                }
+            ))
+            Toggle("Publish my stats to leaderboards", isOn: Binding(
+                get: { state.settings.publishStatsEnabled },
+                set: { newValue in
+                    state.updateSettings { $0.publishStatsEnabled = newValue }
+                    if newValue {
+                        state.publishCommunityStats()
+                    } else {
+                        state.unpublishCommunityStats()
+                    }
+                }
+            ))
+            Text("Only aggregate numbers are shared (words, active time, streaks, sessions, writing days). Documents, project names, paths, and manuscript text are never shared.")
+                .font(.caption).foregroundStyle(.secondary)
+            Toggle("Show sample leaderboard entries", isOn: binding(\.showSampleCommunity))
+            Text("Placeholder entries so you can see the leaderboard layout. They disappear once a real community service is connected.")
+                .font(.caption).foregroundStyle(.secondary)
+            HStack {
+                Button("Publish Now") { state.publishCommunityStats() }
+                    .disabled(!state.settings.publishStatsEnabled)
+                Button("Reveal Community Data") {
+                    let url = AppPaths.communityDataURL
+                    if !FileManager.default.fileExists(atPath: url.path) {
+                        try? FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+                        try? Data("{}".utf8).write(to: url)
+                    }
+                    NSWorkspace.shared.activateFileViewerSelecting([url])
+                }
+            }
         }
     }
 

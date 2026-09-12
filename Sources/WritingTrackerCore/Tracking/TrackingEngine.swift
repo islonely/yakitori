@@ -106,6 +106,8 @@ public final class TrackingEngine {
     public var onChange: (() -> Void)?
     /// Called on the main queue when persisted history changes (sessions, aggregates, settings).
     public var onDataChange: (() -> Void)?
+    /// Called on the main queue after a session is recorded (used to refresh published stats).
+    public var onSessionEnded: (() -> Void)?
 
     private let wordCountSampleInterval: TimeInterval = 20
     private let idleFallbackInterval: TimeInterval = 5
@@ -640,6 +642,7 @@ public final class TrackingEngine {
         if SessionRecordingPolicy.shouldRecord(session) {
             try? sessionRepository.upsert(session)
             rebuildAggregatesLocked(touching: session)
+            DispatchQueue.main.async { [weak self] in self?.onSessionEnded?() }
         }
         stateMachine.resetToIdle()
         flushEventsLocked()

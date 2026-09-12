@@ -127,4 +127,9 @@ public enum AppPaths {
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         return dir
     }
+
+    /// Placeholder community/leaderboard store until an online service exists.
+    public static var communityDataURL: URL {
+        applicationSupportDirectory.appendingPathComponent("community.json")
+    }
 }
