@@ -219,6 +219,7 @@ public final class SessionStateMachine {
     }
 
     private func handleInactivity(at date: Date) -> SessionTransition? {
+        guard policy.inactivityTimeout > 0 else { return nil }
         switch state {
         case .active:
             if policy.endOnInactivity && !isManual {

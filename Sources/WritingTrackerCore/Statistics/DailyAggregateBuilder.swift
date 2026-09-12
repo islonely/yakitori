@@ -25,7 +25,12 @@ public struct DailyAggregateBuilder {
                 let dayEnd = calendar.endOfDay(for: dayStart)
                 var bucket = buckets[dayKey] ?? MutableAggregate(dayKey: dayKey, date: dayStart)
 
-                if let net = session.netWordChange {
+                if let added = session.wordsAdded, let removed = session.wordsRemoved {
+                    // Edit-level detail is available.
+                    bucket.wordsAdded += added
+                    bucket.wordsRemoved += removed
+                    bucket.netWords += session.netWordChange ?? (added - removed)
+                } else if let net = session.netWordChange {
                     if net >= 0 {
                         bucket.wordsAdded += net
                     } else {
@@ -48,9 +53,8 @@ public struct DailyAggregateBuilder {
                 bucket.activeSeconds += activeSeconds
                 bucket.focusSeconds += focusSeconds
                 bucket.projectIDs.insert(session.projectID)
-                if session.startedAt >= dayStart && session.startedAt < dayEnd {
-                    bucket.sessionCount += 1
-                }
+                // A session that spans midnight contributes to each day it overlaps.
+                bucket.sessionCount += 1
                 let sessionStart = session.startedAt
                 if bucket.firstSessionAt == nil || sessionStart < bucket.firstSessionAt! {
                     bucket.firstSessionAt = sessionStart
