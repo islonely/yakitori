@@ -22,8 +22,15 @@ supported macOS interface. It never estimates words from keystrokes.
 |---|---|---|---|
 | Microsoft Word | Yes | Yes | AppleScript `compute statistics` |
 | Apple Pages | Yes | Yes | AppleScript `count of words of body text` |
-| Scrivener | Yes | No | No scripting API (reading project files would mean reading manuscript text) |
-| Ulysses, LibreOffice, Obsidian, browsers | Yes | No | No supported document/word-count API |
+| Scrivener | Yes | No | No scripting API (confirmed by the developers) |
+| Ulysses | Yes | No | x-callback API exists but exposes no count and cannot identify the active sheet |
+| LibreOffice | Yes | No | UNO `getWordCount` needs an enabled socket/macro bridge, not a supported macOS automation API |
+| Obsidian | Yes | No | Electron; no AppleScript, and counting would mean reading the vault |
+| Chrome / Brave / Edge / Safari | Yes | No | JS from Apple Events is off by default; Google Docs renders to canvas |
+| Lacuna Book Formatter | Yes | No | Internal `get_word_count` only; no external API, URL scheme or AppleScript |
+
+Time-only applications show "Word count unavailable" rather than a guess. We do
+not read document/sheet/project files to manufacture a count.
 
 Time-only applications show "Word count unavailable" rather than a guess.
 

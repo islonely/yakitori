@@ -15,14 +15,17 @@ focus/activity but are **not** advertised as supported, and word counts are neve
 The product only claims word-count support for applications from which an **exact**
 word count can be read through a supported macOS interface. As of this document:
 
-| Application | Focus/activity | Exact word count | Mechanism |
+| Application | Focus/activity | Exact word count | Mechanism / verdict |
 |---|---|---|---|
-| Microsoft Word | Yes | Yes | AppleScript `compute statistics` |
-| Apple Pages | Yes | Yes | AppleScript `count of words of body text` |
-| Scrivener | Yes (time only) | **No** | No scripting API; project files would require reading manuscript content |
-| Ulysses | Yes (time only) | **No** | No reliable scripting API |
-| LibreOffice | Yes (time only) | **No** | No supported macOS scripting API |
-| Obsidian / browsers | Yes (time only) | **No** | Electron/browser; no native document API |
+| Microsoft Word | Yes | Yes | AppleScript `compute statistics` (verified) |
+| Apple Pages | Yes | Yes | AppleScript `count of words of body text` (verified) |
+| Scrivener | Yes (time only) | **No** | Literature & Latte confirm Scrivener has never had AppleScript; project files are RTF, so counting would mean reading the manuscript |
+| Ulysses | Yes (time only) | **No** | Has an x-callback-url API (`get-item`, `read-sheet`), but no word count and no way to identify the active sheet. `read-sheet` only returns text, which we will not read |
+| LibreOffice | Yes (time only) | **No** | A UNO API exists (`getWordCount`) but requires an enabled UNO socket / macro bridge; not a supported macOS automation interface and not installed |
+| Obsidian | Yes (time only) | **No** | Electron app; no AppleScript. URI scheme opens files only. A vault's markdown would have to be read to count |
+| Browsers (Chrome/Brave/Edge/Safari) | Yes (time only) | **No** | `execute javascript` / `do JavaScript` exist but are **off by default** ("Allow JavaScript from Apple Events"); Google Docs renders to a canvas so the DOM has no reliable text |
+| Lacuna Book Formatter | Yes (time only) | **No** | Tauri app with an internal `get_word_count` command but no external API, URL scheme or AppleScript. Project is a zip of TipTap JSON; counts are computed at runtime, not stored |
+| Atticus / Vellum / other formatters | Yes (time only) | **No** | No documented external automation interface |
 
 Rules:
 
@@ -31,7 +34,10 @@ Rules:
 - Applications without a count API can still be added and tracked for focus and
   active time, but they are labelled as time-only.
 - Adding a new count-supported adapter requires a verified, documented interface
-  that returns a word count without reading manuscript text.
+  that returns a word count **without reading manuscript text**.
+- Reading document/sheet/project files (Scrivener RTF, Ulysses `read-sheet`,
+  Obsidian markdown, Lacuna TipTap JSON) is explicitly **not** an acceptable
+  word-count mechanism.
 
 
 ---
