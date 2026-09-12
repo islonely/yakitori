@@ -84,7 +84,7 @@ public final class ProjectAssociationService: ProjectResolving {    private let 
 
 public enum AppPaths {
     private static let folderName = "Yakitori"
-    private static let databaseFileName = "WritingTracker.sqlite"
+    private static let databaseFileName = "Yakitori.sqlite"
 
     public static var applicationSupportDirectory: URL {
         let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first

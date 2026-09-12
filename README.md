@@ -95,7 +95,7 @@ dashboard is open. Click the flame icon in the menu bar to open the popover, the
 The database lives at:
 
 ```
-~/Library/Application Support/Yakitori/WritingTracker.sqlite
+~/Library/Application Support/Yakitori/Yakitori.sqlite
 ```
 
 Backups are written to `.../Yakitori/Backups/`.
