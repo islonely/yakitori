@@ -247,6 +247,7 @@ public final class TrackingEngine {
     private func configureStateMachineCallbacks() {
         stateMachine.onSessionBegan = { [weak self] _, _ in
             guard let self else { return }
+            self.lastWordCount = nil
             self.recordEventLocked(type: .sessionStarted, at: self.dateProvider.now)
         }
         stateMachine.onTransition = { [weak self] transition in
@@ -254,7 +255,9 @@ public final class TrackingEngine {
             switch transition.to {
             case .paused: self.recordEventLocked(type: .sessionPaused, at: transition.at)
             case .active: self.recordEventLocked(type: .sessionResumed, at: transition.at)
-            case .ended: self.recordEventLocked(type: .sessionEnded, at: transition.at)
+            case .ended:
+                self.recordEventLocked(type: .sessionEnded, at: transition.at)
+                self.persistEndedSessionLocked()
             default: break
             }
         }
@@ -435,6 +438,7 @@ public final class TrackingEngine {
         let document = resolveDocumentLocked(info: info)
         if document?.id != currentDocument?.id {
             currentDocument = document
+            lastWordCount = nil
             stateMachine.documentID = document?.id
             recordEventLocked(type: .documentChanged, at: dateProvider.now)
             if let document {
@@ -526,8 +530,12 @@ public final class TrackingEngine {
 
     private func persistEndedSessionLocked() {
         guard let session = stateMachine.session else { return }
-        try? sessionRepository.upsert(session)
-        rebuildAggregatesLocked(touching: session)
+        // Discard trivial focus-only blips that contain no writing time or words.
+        let isTrivial = session.activeSeconds < 1 && session.focusSeconds < 1 && (session.netWordChange ?? 0) == 0
+        if !isTrivial {
+            try? sessionRepository.upsert(session)
+            rebuildAggregatesLocked(touching: session)
+        }
         stateMachine.resetToIdle()
         flushEventsLocked()
     }
@@ -634,6 +642,11 @@ public final class TrackingEngine {
         guard let bundleID = info.bundleIdentifier else { return false }
         if bundleID == Bundle.main.bundleIdentifier { return false }
         guard let application = applications.first(where: { $0.bundleIdentifier == bundleID }), application.enabled else {
+            return false
+        }
+        // When "start at launch" is disabled, automatic sessions wait until the
+        // user starts one manually; otherwise the app would track silently.
+        if !settings.startTrackingAtLaunch, !stateMachine.isSessionOpen, settings.trackingMode != .manual {
             return false
         }
         switch settings.trackingMode {

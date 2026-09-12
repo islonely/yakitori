@@ -1,11 +1,61 @@
 import SwiftUI
+import AppKit
+import UserNotifications
 import WritingTrackerCore
 
 @main
 struct WritingTrackerApp: App {
+    @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
+    @StateObject private var state = AppState.shared
+
     var body: some Scene {
-        MenuBarExtra("Writing Tracker", systemImage: "square.and.pencil") {
-            Text("Writing Tracker")
+        MenuBarExtra {
+            MenuBarPopover()
+                .environmentObject(state)
+        } label: {
+            MenuBarLabel()
+                .environmentObject(state)
         }
+        .menuBarExtraStyle(.window)
+
+        Window("Writing Tracker", id: "dashboard") {
+            MainWindowView()
+                .environmentObject(state)
+                .frame(minWidth: 960, minHeight: 640)
+        }
+        .defaultSize(width: 1160, height: 760)
+        .commands {
+            CommandGroup(replacing: .appInfo) {
+                Button("About Writing Tracker") {
+                    NSApplication.shared.orderFrontStandardAboutPanel(nil)
+                }
+            }
+        }
+    }
+}
+
+final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDelegate {
+    func applicationDidFinishLaunching(_ notification: Notification) {
+        NSApp.setActivationPolicy(.accessory)
+        UNUserNotificationCenter.current().delegate = self
+        AppState.shared.start()
+    }
+
+    func applicationWillTerminate(_ notification: Notification) {
+        AppState.shared.shutdown()
+    }
+
+    func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
+        // Closing the dashboard must not stop background tracking.
+        false
+    }
+
+    // Allow banners while the app is frontmost.
+    func userNotificationCenter(
+        _ center: UNUserNotificationCenter,
+        willPresent notification: UNNotification,
+        withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void
+    ) {
+        completionHandler([.banner, .sound])
     }
 }

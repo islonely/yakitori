@@ -72,6 +72,14 @@ public final class SessionService {
         try sessionRepository.sessions(filter: filter)
     }
 
+    public func sessions(forProject projectID: String) throws -> [Session] {
+        try sessionRepository.sessions(forProject: projectID)
+    }
+
+    public func sessions(forApplication applicationID: String) throws -> [Session] {
+        try sessionRepository.sessions(filter: SessionFilter(applicationID: applicationID))
+    }
+
     public func allSessions() throws -> [Session] {
         try sessionRepository.all()
     }

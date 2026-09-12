@@ -236,6 +236,55 @@ public final class StatisticsService {
 
     // MARK: - Patterns
 
+    /// Hour-by-hour breakdown for a single day, used by the dashboard timeline.
+    public func hourlyStatistics(for date: Date) -> [HourPattern] {
+        let dayStart = calendar.startOfDay(for: date)
+        let dayEnd = calendar.endOfDay(for: dayStart)
+        let sessions = (try? sessionRepository.sessions(in: DateInterval(start: dayStart, end: dayEnd))) ?? []
+        var seconds = [Double](repeating: 0, count: 24)
+        var words = [Int](repeating: 0, count: 24)
+        var counts = [Int](repeating: 0, count: 24)
+
+        for session in sessions {
+            let startHour = calendar.hour(of: max(session.startedAt, dayStart))
+            if session.startedAt >= dayStart && session.startedAt < dayEnd {
+                counts[startHour] += 1
+            }
+            var rangeSeconds: [Double] = [Double](repeating: 0, count: 24)
+            var totalSeconds = 0.0
+            let clampedRanges = session.activeRanges.isEmpty
+                ? (session.activeSeconds > 0 ? [TimeRange(start: session.startedAt, end: min(session.startedAt.addingTimeInterval(session.activeSeconds), session.endedAt ?? dayEnd))] : [])
+                : session.activeRanges
+            for range in clampedRanges {
+                var cursor = max(range.start, dayStart)
+                let end = min(range.end, dayEnd)
+                while cursor < end {
+                    let hourStart = calendar.calendar.dateInterval(of: .hour, for: cursor)?.start ?? cursor
+                    let hourEnd = calendar.calendar.date(byAdding: .hour, value: 1, to: hourStart) ?? end
+                    let sliceEnd = min(hourEnd, end)
+                    let slice = sliceEnd.timeIntervalSince(cursor)
+                    let hour = calendar.hour(of: cursor)
+                    seconds[hour] += slice
+                    rangeSeconds[hour] += slice
+                    totalSeconds += slice
+                    cursor = sliceEnd
+                }
+            }
+            let net = session.netWordChange ?? 0
+            if totalSeconds > 0 {
+                for hour in 0..<24 where rangeSeconds[hour] > 0 {
+                    words[hour] += Int((Double(net) * rangeSeconds[hour] / totalSeconds).rounded())
+                }
+            } else if session.startedAt >= dayStart && session.startedAt < dayEnd {
+                words[startHour] += net
+            }
+        }
+
+        return (0..<24).map { hour in
+            HourPattern(hour: hour, netWords: words[hour], activeSeconds: seconds[hour], sessions: counts[hour])
+        }
+    }
+
     public func productivityPatterns() -> ProductivityPatterns {
         let sessions = (try? sessionRepository.completed()) ?? []
         var hourWords: [Int: Int] = [:]
