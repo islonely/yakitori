@@ -71,7 +71,17 @@ struct ProjectDetailView: View {
     private func header(_ project: Project) -> some View {
         HStack(alignment: .firstTextBaseline) {
             VStack(alignment: .leading, spacing: 4) {
-                Text(project.title).font(.largeTitle.weight(.semibold))
+                HStack(spacing: 8) {
+                    Text(project.title).font(.largeTitle.weight(.semibold))
+                    if state.settings.currentProjectID == project.id {
+                        Text("CURRENT")
+                            .font(.caption2.weight(.bold))
+                            .padding(.horizontal, 6).padding(.vertical, 2)
+                            .background(Color.accentColor.opacity(0.15))
+                            .foregroundStyle(Color.accentColor)
+                            .clipShape(Capsule())
+                    }
+                }
                 HStack(spacing: 8) {
                     Text(project.type.displayName)
                     Text("·")
@@ -84,6 +94,13 @@ struct ProjectDetailView: View {
                 .foregroundStyle(.secondary)
             }
             Spacer()
+            if state.settings.currentProjectID != project.id {
+                Button {
+                    state.setCurrentProject(project.id)
+                } label: {
+                    Label("Set as Current", systemImage: "target")
+                }
+            }
         }
     }
 

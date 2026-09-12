@@ -4,11 +4,12 @@ import WritingTrackerCore
 
 struct MenuBarLabel: View {
     @EnvironmentObject private var state: AppState
+    @EnvironmentObject private var tracking: TrackingModel
 
     var body: some View {
         if state.settings.menuBarShowsWordCount {
             Label {
-                Text(Format.compact(state.tracking.todayNetWords))
+                Text(Format.compact(tracking.snapshot.todayNetWords))
             } icon: {
                 Image(systemName: "square.and.pencil")
             }
@@ -20,6 +21,7 @@ struct MenuBarLabel: View {
 
 struct MenuBarPopover: View {
     @EnvironmentObject private var state: AppState
+    @EnvironmentObject private var tracking: TrackingModel
     @Environment(\.openWindow) private var openWindow
 
     private var statistics: StatisticsService { state.container.statistics }
@@ -46,7 +48,7 @@ struct MenuBarPopover: View {
                 .font(.headline)
             Spacer()
             Circle()
-                .fill(state.tracking.isSessionOpen ? Color.green : Color.secondary.opacity(0.4))
+                .fill(tracking.snapshot.isSessionOpen ? Color.green : Color.secondary.opacity(0.4))
                 .frame(width: 8, height: 8)
         }
     }
@@ -57,9 +59,9 @@ struct MenuBarPopover: View {
                 .font(.caption.weight(.semibold))
                 .foregroundStyle(.secondary)
             HStack(alignment: .top, spacing: 16) {
-                stat(value: Format.int(state.tracking.todayNetWords), label: "words")
-                stat(value: Format.duration(state.tracking.todayActiveSeconds), label: "active")
-                stat(value: "\(state.tracking.todaySessions)", label: "sessions")
+                stat(value: Format.int(tracking.snapshot.todayNetWords), label: "words")
+                stat(value: Format.duration(tracking.snapshot.todayActiveSeconds), label: "active")
+                stat(value: "\(tracking.snapshot.todaySessions)", label: "sessions")
             }
             HStack(spacing: 4) {
                 Image(systemName: "flame.fill")
@@ -75,18 +77,18 @@ struct MenuBarPopover: View {
                 Text("Current Project").font(.caption).foregroundStyle(.secondary)
                 Text(project.title).font(.subheadline.weight(.medium))
             }
-            if state.tracking.isSessionOpen {
+            if tracking.snapshot.isSessionOpen {
                 HStack {
                     Text(sessionStateText).font(.callout)
                     Spacer()
-                    if let net = state.tracking.currentSessionNetWords {
+                    if let net = tracking.snapshot.currentSessionNetWords {
                         Text("\(net >= 0 ? "+" : "")\(Format.int(net)) net")
                             .font(.callout.monospacedDigit())
                             .foregroundStyle(.secondary)
                     }
                 }
                 HStack(spacing: 8) {
-                    if state.tracking.state == .paused {
+                    if tracking.snapshot.state == .paused {
                         Button("Resume") { state.resumeSession() }
                             .buttonStyle(.borderedProminent)
                     } else {
@@ -159,14 +161,14 @@ struct MenuBarPopover: View {
     }
 
     private var sessionStateText: String {
-        if let started = state.tracking.currentSessionStartedAt {
+        if let started = tracking.snapshot.currentSessionStartedAt {
             let elapsed = Date().timeIntervalSince(started)
-            switch state.tracking.state {
+            switch tracking.snapshot.state {
             case .paused: return "Paused · \(Format.duration(elapsed))"
             default: return "Active · \(Format.duration(elapsed))"
             }
         }
-        return state.tracking.state.rawValue.capitalized
+        return tracking.snapshot.state.rawValue.capitalized
     }
 
     private var streak: Int {

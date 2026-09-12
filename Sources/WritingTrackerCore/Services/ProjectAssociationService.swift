@@ -1,10 +1,28 @@
 import Foundation
 
+/// Pure project-association policy, kept separate from the tracking engine so it
+/// can be unit tested.
+///
+/// Priority: an explicit manual choice wins; otherwise the document's own
+/// association; otherwise the resolver's rule-based match; otherwise the
+/// user's current project.
+public enum ProjectResolution {
+    public static func effectiveProjectID(
+        documentProjectID: String?,
+        resolvedProjectID: String?,
+        currentProjectID: String?,
+        isManual: Bool,
+        manualProjectID: String?
+    ) -> String? {
+        if isManual, let manualProjectID { return manualProjectID }
+        return documentProjectID ?? resolvedProjectID ?? currentProjectID
+    }
+}
+
 /// Resolves activity to a project using the documented association priority:
 /// explicit user association > exact document > folder rule > project-file
 /// recognition > application-specific project > manual assignment.
-public final class ProjectAssociationService: ProjectResolving {
-    private let ruleRepository: AssociationRuleRepository
+public final class ProjectAssociationService: ProjectResolving {    private let ruleRepository: AssociationRuleRepository
     private let documentRepository: DocumentRepository
     private let settingsRepository: SettingsRepository
     private var rules: [AssociationRule] = []

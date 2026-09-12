@@ -107,6 +107,9 @@ public final class SessionStateMachine {
         state != .idle && state != .ended
     }
 
+    /// True while the current session was explicitly started by the user.
+    public var isManualSession: Bool { isManual }
+
     public var isFocused: Bool { focusOpen != nil }
 
     /// Live elapsed accounting for the current session.

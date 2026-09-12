@@ -40,7 +40,6 @@ struct StatisticsView: View {
                 .frame(width: 150)
             }
         }
-        .id(state.dataVersion)
     }
 
     private var interval: DateInterval { range.interval(calendar: calendar) }

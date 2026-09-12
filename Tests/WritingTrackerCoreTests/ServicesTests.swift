@@ -68,6 +68,40 @@ final class ProjectServiceTests: XCTestCase {
     }
 }
 
+final class ProjectAssociationPolicyTests: XCTestCase {
+    func testManualChoiceWins() {
+        let result = ProjectResolution.effectiveProjectID(
+            documentProjectID: "doc", resolvedProjectID: "rule",
+            currentProjectID: "current", isManual: true, manualProjectID: "manual"
+        )
+        XCTAssertEqual(result, "manual")
+    }
+
+    func testDocumentAssociationBeatsCurrentProject() {
+        let result = ProjectResolution.effectiveProjectID(
+            documentProjectID: "doc", resolvedProjectID: "rule",
+            currentProjectID: "current", isManual: false, manualProjectID: nil
+        )
+        XCTAssertEqual(result, "doc")
+    }
+
+    func testCurrentProjectFallbackWhenNoAssociation() {
+        let result = ProjectResolution.effectiveProjectID(
+            documentProjectID: nil, resolvedProjectID: nil,
+            currentProjectID: "current", isManual: false, manualProjectID: nil
+        )
+        XCTAssertEqual(result, "current")
+    }
+
+    func testNilWhenNothingMatches() {
+        let result = ProjectResolution.effectiveProjectID(
+            documentProjectID: nil, resolvedProjectID: nil,
+            currentProjectID: nil, isManual: false, manualProjectID: nil
+        )
+        XCTAssertNil(result)
+    }
+}
+
 final class SessionServiceTests: XCTestCase {
     private var database: SQLiteDatabase!
     private var statistics: StatisticsService!

@@ -225,8 +225,7 @@ struct PermissionBadge: View {
     }
 }
 
-enum HeatmapColor {
-    static func color(intensity: Double) -> Color {
+enum HeatmapColor {    static func color(intensity: Double) -> Color {
         guard intensity > 0 else { return Color.primary.opacity(0.06) }
         let clamped = min(1.0, max(0.0, intensity))
         return Color.accentColor.opacity(0.18 + 0.82 * clamped)
@@ -240,5 +239,16 @@ extension AppAppearance {
         case .light: return .light
         case .dark: return .dark
         }
+    }
+}
+
+/// Small view that observes the high-frequency tracking model on its own, so
+/// heavy screens (e.g. Settings) do not re-render on every activity tick.
+struct TrackingStatusLabel: View {
+    @EnvironmentObject private var tracking: TrackingModel
+
+    var body: some View {
+        Text(tracking.snapshot.isSessionOpen ? "Tracking" : "Idle")
+            .foregroundStyle(.secondary)
     }
 }

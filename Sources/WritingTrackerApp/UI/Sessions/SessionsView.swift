@@ -45,7 +45,6 @@ struct SessionsView: View {
         .sheet(isPresented: $isAddingManual) {
             ManualEntryView().environmentObject(state)
         }
-        .id(state.dataVersion)
     }
 
     private var filterBar: some View {

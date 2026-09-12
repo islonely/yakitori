@@ -34,7 +34,7 @@ public final class BackupService {
             throw WritingTrackerError.databaseUnavailable("No on-disk database to back up")
         }
         // Flush the WAL so the main file is self-contained.
-        try? database.execute("PRAGMA wal_checkpoint(TRUNCATE);")
+        _ = try? database.execute("PRAGMA wal_checkpoint(TRUNCATE);")
         try fileManager.createDirectory(at: backupsDirectory, withIntermediateDirectories: true)
 
         let formatter = DateFormatter()
@@ -127,7 +127,7 @@ public final class DataManagementService {
             try database.execute("DELETE FROM documents WHERE project_id = ?;", [.text(projectID)])
             try database.execute("DELETE FROM projects WHERE id = ?;", [.text(projectID)])
         }
-        try statistics.rebuildDailyAggregates()
+        statistics.rebuildDailyAggregates()
     }
 
     /// Full factory reset. Creates a backup first so nothing is irrecoverable.

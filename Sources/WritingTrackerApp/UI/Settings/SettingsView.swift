@@ -30,7 +30,6 @@ struct SettingsView: View {
             .frame(maxWidth: 760, alignment: .leading)
         }
         .navigationTitle("Settings")
-        .id(state.dataVersion)
     }
 
     // MARK: - Sections
@@ -67,8 +66,7 @@ struct SettingsView: View {
             HStack {
                 Text("Status")
                 Spacer()
-                Text(state.tracking.isSessionOpen ? "Tracking" : "Idle")
-                    .foregroundStyle(.secondary)
+                TrackingStatusLabel()
             }
         }
     }

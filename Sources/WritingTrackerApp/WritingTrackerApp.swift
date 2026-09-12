@@ -12,15 +12,18 @@ struct WritingTrackerApp: App {
         MenuBarExtra {
             MenuBarPopover()
                 .environmentObject(state)
+                .environmentObject(state.tracking)
         } label: {
             MenuBarLabel()
                 .environmentObject(state)
+                .environmentObject(state.tracking)
         }
         .menuBarExtraStyle(.window)
 
         Window("Writing Tracker", id: "dashboard") {
             MainWindowView()
                 .environmentObject(state)
+                .environmentObject(state.tracking)
                 .frame(minWidth: 960, minHeight: 640)
         }
         .defaultSize(width: 1160, height: 760)

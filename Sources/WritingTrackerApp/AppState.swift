@@ -2,18 +2,27 @@ import Foundation
 import SwiftUI
 import WritingTrackerCore
 
+/// High-frequency live tracking state, kept separate from `AppState` so that
+/// live updates (which can occur once per second while typing) never invalidate
+/// the data-heavy dashboard/statistics views.
+@MainActor
+final class TrackingModel: ObservableObject {
+    @Published var snapshot: TrackingSnapshot = .idle
+}
+
 @MainActor
 final class AppState: ObservableObject {
     static let shared = AppState()
 
     let container: AppContainer
     let bootstrapError: Error?
+    let tracking = TrackingModel()
 
-    @Published var tracking: TrackingSnapshot = .idle
     @Published var settings: UserSettings
     @Published var permissionStatuses: [PermissionStatus] = []
     @Published var selectedSection: SidebarSection = .dashboard
     @Published var selectedProjectID: String?
+    /// Increments only when persisted history changes (sessions, projects, settings).
     @Published var dataVersion: Int = 0
     @Published var alertMessage: String?
     @Published var isOnboardingPresented = false
@@ -51,17 +60,30 @@ final class AppState: ObservableObject {
         if bootstrapError != nil {
             alertMessage = "The database could not be opened. Running with temporary storage; data will not persist. \(bootstrapError?.localizedDescription ?? "")"
         }
+
+        // Live updates are cheap and only touch the tracking model.
         container.trackingEngine.onChange = { [weak self] in
+            Task { @MainActor in
+                guard let self else { return }
+                self.tracking.snapshot = self.container.trackingEngine.snapshot()
+            }
+        }
+        // Persisted-history updates invalidate data-driven views.
+        container.trackingEngine.onDataChange = { [weak self] in
             Task { @MainActor in self?.refresh() }
         }
         container.permissionProvider.onChange = { [weak self] in
             Task { @MainActor in self?.refreshPermissions() }
         }
+
         // The engine always runs so manual sessions work even when automatic
         // tracking-at-launch is disabled.
         container.trackingEngine.start()
+
         refreshPermissions()
         refresh()
+        tracking.snapshot = container.trackingEngine.snapshot()
+
         if !settings.onboardingCompleted {
             isOnboardingPresented = true
         }
@@ -85,10 +107,11 @@ final class AppState: ObservableObject {
         container.trackingEngine.stop()
     }
 
+    /// Reloads persisted data and settings. Called after any structural change.
     func refresh() {
-        tracking = container.trackingEngine.snapshot()
         settings = container.settings
         dataVersion &+= 1
+        tracking.snapshot = container.trackingEngine.snapshot()
     }
 
     func refreshPermissions() {
@@ -154,7 +177,8 @@ final class AppState: ObservableObject {
     // MARK: - Convenience
 
     var currentProject: Project? {
-        guard let id = tracking.currentProjectID ?? settings.currentProjectID else { return nil }
+        let id = tracking.snapshot.currentProjectID ?? settings.currentProjectID
+        guard let id else { return nil }
         return try? container.projects.project(id: id)
     }
 

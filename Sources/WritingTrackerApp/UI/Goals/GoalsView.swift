@@ -32,7 +32,6 @@ struct GoalsView: View {
         .sheet(isPresented: $isAdding) {
             GoalEditorView().environmentObject(state)
         }
-        .id(state.dataVersion)
     }
 
     private func goalRow(_ progress: GoalProgress) -> some View {

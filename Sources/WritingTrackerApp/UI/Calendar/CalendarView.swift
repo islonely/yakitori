@@ -86,7 +86,6 @@ struct CalendarView: View {
             .padding(24)
         }
         .navigationTitle("Calendar")
-        .id(state.dataVersion)
     }
 
     private var heatmap: some View {

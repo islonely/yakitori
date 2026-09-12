@@ -39,7 +39,6 @@ struct DashboardView: View {
                 .frame(width: 150)
             }
         }
-        .id(state.dataVersion)
     }
 
     private var header: some View {

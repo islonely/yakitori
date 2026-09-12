@@ -29,7 +29,6 @@ struct AchievementsView: View {
             .padding(24)
         }
         .navigationTitle("Achievements")
-        .id(state.dataVersion)
     }
 
     private func achievementCard(_ achievement: Achievement) -> some View {
@@ -96,7 +95,6 @@ struct ReportsView: View {
         }
         .navigationTitle("Reports")
         .onChange(of: kind) { _ in }
-        .id(state.dataVersion)
     }
 
     @ViewBuilder

@@ -59,7 +59,6 @@ struct ProjectsView: View {
             ProjectEditorView(project: nil)
                 .environmentObject(state)
         }
-        .id(state.dataVersion)
     }
 
     private var library: some View {
@@ -250,7 +249,7 @@ struct ProjectEditorView: View {
                 existing.deadline = hasDeadline ? deadline : nil
                 try state.container.projects.update(existing)
             } else {
-                try state.container.projects.createProject(
+                let created = try state.container.projects.createProject(
                     title: title,
                     type: type,
                     description: description.isEmpty ? nil : description,
@@ -258,6 +257,9 @@ struct ProjectEditorView: View {
                     startingWordCount: startingValue,
                     deadline: hasDeadline ? deadline : nil
                 )
+                if state.settings.currentProjectID == nil {
+                    state.setCurrentProject(created.id)
+                }
             }
             state.refresh()
             dismiss()

@@ -49,6 +49,13 @@ public struct TrackingSnapshot: Sendable {
 
 /// The background tracking engine. Completely independent of SwiftUI; it can run
 /// with the GUI closed and persists all state through repositories.
+///
+/// Concurrency notes:
+/// - All mutable state is confined to `queue`.
+/// - `snapshot()` never blocks on `queue`; it returns a cached value so the UI is
+///   never held up by AppleScript or database work.
+/// - `onChange` fires for live updates (cheap), `onDataChange` fires only when
+///   persisted history changes (sessions/aggregates/settings).
 public final class TrackingEngine {
     // MARK: Dependencies
     private let database: Database
@@ -90,11 +97,17 @@ public final class TrackingEngine {
     private var eventFlushTimer: DispatchSourceTimer?
     private var pendingEvents: [ActivityEvent] = []
 
+    // MARK: Cached snapshot (thread-safe, never blocks the UI)
+    private let snapshotLock = NSLock()
+    private var cachedSnapshot: TrackingSnapshot = .idle
+
     // MARK: Callbacks
     /// Called on the main queue whenever observable tracking state changes.
     public var onChange: (() -> Void)?
+    /// Called on the main queue when persisted history changes (sessions, aggregates, settings).
+    public var onDataChange: (() -> Void)?
 
-    private let wordCountSampleInterval: TimeInterval = 15
+    private let wordCountSampleInterval: TimeInterval = 20
     private let idleFallbackInterval: TimeInterval = 5
     private let checkpointInterval: TimeInterval = 20
     private let eventFlushInterval: TimeInterval = 5
@@ -143,9 +156,10 @@ public final class TrackingEngine {
             recoverOpenSessionsLocked()
             registerMonitors()
             startTimers()
+            refreshSnapshotLocked()
             Log.tracking.info("Tracking engine started (mode: \(self.settings.trackingMode.rawValue, privacy: .public))")
         }
-        notifyChange()
+        dispatchChange(dataChanged: true)
     }
 
     public func stop() {
@@ -161,25 +175,30 @@ public final class TrackingEngine {
             sleepMonitor.stop()
             timeChangeMonitor.stop()
             stopTimers()
+            refreshSnapshotLocked()
             Log.tracking.info("Tracking engine stopped")
         }
-        notifyChange()
+        dispatchChange(dataChanged: false)
     }
 
     /// Ends and persists any open session (used on clean quit).
     public func endActiveSession() {
         queue.sync {
             guard stateMachine.isSessionOpen else { return }
-            let now = dateProvider.now
-            _ = stateMachine.handle(.stopManually(at: now))
+            captureWordCountLocked()
+            _ = stateMachine.handle(.stopManually(at: dateProvider.now))
             persistEndedSessionLocked()
+            refreshSnapshotLocked()
         }
-        notifyChange()
+        dispatchChange(dataChanged: true)
     }
 
     public func reloadSettings() {
-        queue.sync { reloadSettingsLocked() }
-        notifyChange()
+        queue.sync {
+            reloadSettingsLocked()
+            refreshSnapshotLocked()
+        }
+        dispatchChange(dataChanged: true)
     }
 
     // MARK: Manual control
@@ -188,42 +207,49 @@ public final class TrackingEngine {
         queue.sync {
             guard isRunning else { return }
             if stateMachine.isSessionOpen {
+                captureWordCountLocked()
                 _ = stateMachine.handle(.stopManually(at: dateProvider.now))
                 persistEndedSessionLocked()
             }
             stateMachine.resetToIdle()
-            stateMachine.projectID = projectID
+            stateMachine.projectID = projectID ?? settings.currentProjectID
             stateMachine.documentID = documentID
             stateMachine.applicationID = currentApplication?.id
             _ = stateMachine.handle(.startManually(at: dateProvider.now, type: type))
             persistOpenSessionLocked()
             flushEventsLocked()
+            refreshSnapshotLocked()
         }
-        notifyChange()
+        dispatchChange(dataChanged: true)
     }
 
     public func pauseSession() {
         queue.sync {
+            captureWordCountLocked()
             _ = stateMachine.handle(.pauseManually(at: dateProvider.now))
             checkpointOpenSessionLocked()
+            refreshSnapshotLocked()
         }
-        notifyChange()
+        dispatchChange(dataChanged: true)
     }
 
     public func resumeSession() {
         queue.sync {
             _ = stateMachine.handle(.resumeManually(at: dateProvider.now))
             checkpointOpenSessionLocked()
+            refreshSnapshotLocked()
         }
-        notifyChange()
+        dispatchChange(dataChanged: true)
     }
 
     public func stopSession() {
         queue.sync {
+            captureWordCountLocked()
             _ = stateMachine.handle(.stopManually(at: dateProvider.now))
             persistEndedSessionLocked()
+            refreshSnapshotLocked()
         }
-        notifyChange()
+        dispatchChange(dataChanged: true)
     }
 
     public func setCurrentProject(_ projectID: String?) {
@@ -232,14 +258,48 @@ public final class TrackingEngine {
             if stateMachine.isSessionOpen {
                 checkpointOpenSessionLocked()
             }
+            refreshSnapshotLocked()
         }
-        notifyChange()
+        dispatchChange(dataChanged: true)
     }
 
     // MARK: Snapshot
 
+    /// Returns the most recently computed snapshot without touching the engine queue.
     public func snapshot() -> TrackingSnapshot {
-        queue.sync { snapshotLocked() }
+        snapshotLock.lock()
+        defer { snapshotLock.unlock() }
+        return cachedSnapshot
+    }
+
+    /// Synchronously reconstructs the current statistics for a day (used by the UI
+    /// for on-demand values, never in a hot loop).
+    public func todayAggregate() -> DailyAggregate? {
+        let dayKey = currentCalendar.dayKey(for: dateProvider.now)
+        return try? aggregateRepository.find(dayKey: dayKey)
+    }
+
+    // MARK: - Private: snapshot plumbing
+
+    private func refreshSnapshotLocked() {
+        let value = snapshotLocked()
+        snapshotLock.lock()
+        cachedSnapshot = value
+        snapshotLock.unlock()
+    }
+
+    /// Must be called while holding no state locks; only dispatches to main.
+    private func dispatchChange(dataChanged: Bool) {
+        DispatchQueue.main.async { [weak self] in
+            self?.onChange?()
+            if dataChanged { self?.onDataChange?() }
+        }
+    }
+
+    /// Refresh the cached snapshot and notify observers. Call from the engine queue.
+    private func publishLocked(dataChanged: Bool) {
+        refreshSnapshotLocked()
+        dispatchChange(dataChanged: dataChanged)
     }
 
     // MARK: - Private: setup
@@ -267,7 +327,6 @@ public final class TrackingEngine {
         settings = (try? settingsRepository.load()) ?? settings
         stateMachine.policy = SessionPolicy.policy(for: settings.trackingMode, inactivity: settings.inactivityTimeout)
         applications = (try? applicationRepository.all()) ?? []
-        DispatchQueue.main.async { [weak self] in self?.onChange?() }
     }
 
     private func registerMonitors() {
@@ -292,7 +351,7 @@ public final class TrackingEngine {
         timeChangeMonitor.onTimeChanged = { [weak self] in
             self?.queue.async {
                 self?.currentCalendar = CalendarContext(firstWeekday: self?.settings.weekStart ?? .sunday)
-                self?.notifyChange()
+                self?.publishLocked(dataChanged: true)
             }
         }
         timeChangeMonitor.start()
@@ -319,7 +378,12 @@ public final class TrackingEngine {
 
         let wordCount = DispatchSource.makeTimerSource(queue: queue)
         wordCount.schedule(deadline: .now() + wordCountSampleInterval, repeating: wordCountSampleInterval, leeway: .seconds(3))
-        wordCount.setEventHandler { [weak self] in self?.sampleWordCountLocked() }
+        wordCount.setEventHandler { [weak self] in
+            guard let self else { return }
+            if self.sampleWordCountLocked() {
+                self.publishLocked(dataChanged: true)
+            }
+        }
         wordCount.resume()
         wordCountTimer = wordCount
     }
@@ -331,13 +395,15 @@ public final class TrackingEngine {
         eventFlushTimer?.cancel(); eventFlushTimer = nil
     }
 
-    private func notifyChange() {
-        DispatchQueue.main.async { [weak self] in self?.onChange?() }
-    }
-
     // MARK: - Private: event handling
 
     private func handleFrontmostLocked(_ info: FrontmostApplicationInfo) {
+        // Capture the outgoing document's word count before focus changes so the
+        // ending word count (and project total) is accurate.
+        if stateMachine.isSessionOpen {
+            captureWordCountLocked()
+        }
+
         let tracked = isTrackedWritingApplication(info)
         let application = tracked ? applicationRecord(for: info) : currentApplication
         let previousAppID = stateMachine.applicationID
@@ -360,16 +426,18 @@ public final class TrackingEngine {
             isTrackedWritingApp: tracked
         ))
 
-        if tracked, stateMachine.isSessionOpen || stateMachine.state == .ended {
+        var dataChanged = false
+        if tracked {
             // A newly started automatic session needs to be persisted.
             if stateMachine.isSessionOpen, !sessionExistsLocked(id: stateMachine.currentSessionID ?? "") {
                 persistOpenSessionLocked()
+                dataChanged = true
             }
-            refreshDocumentLocked()
-            sampleWordCountLocked()
+            let info = refreshDocumentLocked()
+            if sampleWordCountLocked(using: info) { dataChanged = true }
         }
 
-        notifyChange()
+        publishLocked(dataChanged: dataChanged)
     }
 
     private func handleActivityLocked(at date: Date, kind: ActivityEventType, isPoll: Bool) {
@@ -378,15 +446,16 @@ public final class TrackingEngine {
             recordEventLocked(type: kind, at: date)
         }
         _ = stateMachine.handle(.activity(at: date))
-        notifyChange()
+        publishLocked(dataChanged: false)
     }
 
     private func handleSleepLocked(at date: Date) {
+        captureWordCountLocked()
         _ = stateMachine.handle(.systemWillSleep(at: date))
         recordEventLocked(type: .systemSleep, at: date)
         flushEventsLocked()
         checkpointOpenSessionLocked()
-        notifyChange()
+        publishLocked(dataChanged: true)
     }
 
     private func handleWakeLocked(at date: Date) {
@@ -399,9 +468,9 @@ public final class TrackingEngine {
                 applicationID: currentApplication?.id ?? applicationRecord(for: current)?.id,
                 isTrackedWritingApp: true
             ))
-            refreshDocumentLocked()
+            _ = refreshDocumentLocked()
         }
-        notifyChange()
+        publishLocked(dataChanged: false)
     }
 
     private func tickLocked() {
@@ -422,19 +491,21 @@ public final class TrackingEngine {
         let timeout = settings.inactivityTimeout.seconds
         if timeout > 0, stateMachine.state == .active, let last = lastActivityAt,
            now.timeIntervalSince(last) >= timeout {
+            captureWordCountLocked()
             _ = stateMachine.handle(.inactivityElapsed(at: now))
             checkpointOpenSessionLocked()
-            notifyChange()
+            publishLocked(dataChanged: true)
         }
     }
 
     // MARK: - Private: documents & word counts
 
-    private func refreshDocumentLocked() {
+    @discardableResult
+    private func refreshDocumentLocked() -> ActiveDocumentInfo? {
         guard let adapter = currentAdapter, adapter.capabilities.activeDocument else {
-            return
+            return nil
         }
-        guard let info = adapter.activeDocument() else { return }
+        guard let info = adapter.activeDocument() else { return nil }
         let document = resolveDocumentLocked(info: info)
         if document?.id != currentDocument?.id {
             currentDocument = document
@@ -445,6 +516,18 @@ public final class TrackingEngine {
                 try? documentRepository.touch(id: document.id, at: dateProvider.now)
             }
         }
+        // Propagate the resolved project onto the open session so sessions are
+        // associated even in automatic mode.
+        if !stateMachine.isManualSession {
+            stateMachine.projectID = ProjectResolution.effectiveProjectID(
+                documentProjectID: document?.projectID,
+                resolvedProjectID: nil,
+                currentProjectID: settings.currentProjectID,
+                isManual: false,
+                manualProjectID: nil
+            )
+        }
+        return info
     }
 
     private func resolveDocumentLocked(info: ActiveDocumentInfo) -> Document? {
@@ -460,11 +543,12 @@ public final class TrackingEngine {
             document = try? documentRepository.find(displayName: info.displayName, applicationID: appID)
         }
 
+        // Explicit associations beat rules; fall back to the current project.
         let resolvedProject = projectResolver?.resolveProjectID(
             documentPath: info.filePath ?? info.stableIdentifier,
             documentName: info.displayName,
             applicationID: appID
-        ) ?? stateMachine.projectID
+        ) ?? settings.currentProjectID
 
         if var existing = document {
             existing.lastSeenAt = dateProvider.now
@@ -489,13 +573,36 @@ public final class TrackingEngine {
         return new
     }
 
-    private func sampleWordCountLocked() {
-        guard stateMachine.isSessionOpen, let adapter = currentAdapter, adapter.capabilities.wordCount else { return }
-        guard let info = adapter.activeDocument(), let wordCount = info.wordCount else { return }
-        guard wordCount != lastWordCount else { return }
-        lastWordCount = wordCount
+    /// Samples the active word count once and folds it into the open session.
+    /// Used at focus changes, inactivity, sleep and session end so the ending
+    /// word count is not stale.
+    private func captureWordCountLocked() {
+        guard stateMachine.isSessionOpen,
+              let adapter = currentAdapter,
+              adapter.capabilities.wordCount,
+              let info = adapter.activeDocument(),
+              let wordCount = info.wordCount else { return }
+        applyWordCountLocked(wordCount, info: info, adapter: adapter)
+    }
 
-        let projectID = currentDocument?.projectID ?? stateMachine.projectID
+    @discardableResult
+    private func sampleWordCountLocked(using info: ActiveDocumentInfo? = nil) -> Bool {
+        guard stateMachine.isSessionOpen, let adapter = currentAdapter, adapter.capabilities.wordCount else { return false }
+        let documentInfo: ActiveDocumentInfo?
+        if let info {
+            documentInfo = info
+        } else {
+            documentInfo = adapter.activeDocument()
+        }
+        guard let documentInfo, let wordCount = documentInfo.wordCount else { return false }
+        guard wordCount != lastWordCount else { return false }
+        applyWordCountLocked(wordCount, info: documentInfo, adapter: adapter)
+        return true
+    }
+
+    private func applyWordCountLocked(_ wordCount: Int, info: ActiveDocumentInfo, adapter: WritingApplicationAdapter) {
+        lastWordCount = wordCount
+        let projectID = currentDocument?.projectID ?? stateMachine.projectID ?? settings.currentProjectID
         let snapshot = WordCountSnapshot(
             timestamp: dateProvider.now,
             documentID: currentDocument?.id,
@@ -513,7 +620,6 @@ public final class TrackingEngine {
             try? ProjectRepository(database: database).updateCurrentWordCount(id: projectID, wordCount: wordCount)
         }
         checkpointOpenSessionLocked()
-        notifyChange()
     }
 
     // MARK: - Private: persistence
@@ -573,7 +679,7 @@ public final class TrackingEngine {
         return TrackingSnapshot(
             state: stateMachine.state,
             isRunning: isRunning,
-            currentProjectID: stateMachine.projectID ?? currentDocument?.projectID,
+            currentProjectID: stateMachine.projectID ?? currentDocument?.projectID ?? settings.currentProjectID,
             currentApplicationID: currentApplication?.id,
             currentApplicationName: currentApplication?.displayName,
             currentDocumentName: currentDocument?.displayName,
