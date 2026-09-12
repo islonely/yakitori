@@ -75,11 +75,19 @@ struct SettingsView: View {
     }
 
     private var applicationsSection: some View {
-        let apps = (try? state.container.applicationRepository.all()) ?? []
+        let apps = ((try? state.container.applicationRepository.all()) ?? [])
+            .sorted { lhs, rhs in
+                let l = appSupportsWordCount(lhs), r = appSupportsWordCount(rhs)
+                if l != r { return l }
+                return lhs.displayName.localizedCaseInsensitiveCompare(rhs.displayName) == .orderedAscending
+            }
         let wordState = state.permissionStatus(for: .wordAutomation)
-        return settingsCard("Applications", subtitle: "Choose which writing applications count toward automatic tracking") {
+        return settingsCard(
+            "Applications",
+            subtitle: "Word and Pages provide exact word counts. Everything else is tracked for time and focus only."
+        ) {
             if apps.isEmpty {
-                Text("No writing applications added yet.").foregroundStyle(.secondary)
+                Text("No applications added yet.").foregroundStyle(.secondary)
             } else {
                 ForEach(apps) { app in
                     VStack(alignment: .leading, spacing: 4) {
@@ -89,13 +97,16 @@ struct SettingsView: View {
                                 set: { newValue in updateApplication(app) { $0.enabled = newValue } }
                             )) {
                                 VStack(alignment: .leading, spacing: 1) {
-                                    Text(app.displayName).font(.body)
+                                    HStack(spacing: 6) {
+                                        Text(app.displayName).font(.body)
+                                        capabilityCapsule(app)
+                                    }
                                     Text("\(app.bundleIdentifier) · \(app.adapterType.displayName)")
                                         .font(.caption).foregroundStyle(.secondary)
                                 }
                             }
                             Spacer()
-                            if app.adapterType == .word {
+                            if appSupportsWordCount(app) {
                                 PermissionBadge(state: wordState)
                             }
                             Button {
@@ -122,9 +133,24 @@ struct SettingsView: View {
                     seedApplications()
                 }
             }
-            Text("Any app can be tracked for focus/activity. Document and word-count integration depends on the app.")
+            Text("Any app can be added and tracked for time and focus. Exact word-count support is limited to Microsoft Word and Apple Pages.")
                 .font(.caption).foregroundStyle(.secondary)
         }
+    }
+
+    private func appSupportsWordCount(_ app: WritingApplication) -> Bool {
+        app.adapterType == .word || app.adapterType == .pages
+    }
+
+    private func capabilityCapsule(_ app: WritingApplication) -> some View {
+        let supported = appSupportsWordCount(app)
+        return Text(supported ? "Word count" : "Time only")
+            .font(.caption2.weight(.medium))
+            .padding(.horizontal, 6)
+            .padding(.vertical, 2)
+            .background((supported ? Theme.accent : Color.secondary).opacity(0.15))
+            .foregroundStyle(supported ? Theme.accent : Color.secondary)
+            .clipShape(Capsule())
     }
 
     private var scheduleSection: some View {

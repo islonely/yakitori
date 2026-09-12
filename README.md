@@ -13,26 +13,33 @@ contains the operating rules used while building it.
 
 ---
 
-## Supported applications
+## Application support
 
-Yakitori only reports a word count when it can read an **exact** one through a
-supported macOS interface. It never estimates words from keystrokes.
+Only **Microsoft Word** and **Apple Pages** can provide an exact word count,
+because they expose a scripting (AppleScript) interface we can query. Every other
+application is tracked for **time and focus only** and shows "Word count
+unavailable" rather than a guess. Yakitori never estimates words from keystrokes
+and never reads document, sheet, or project files to manufacture a count.
 
-| Application | Focus / time | Exact word count | Mechanism |
-|---|---|---|---|
-| Microsoft Word | Yes | Yes | AppleScript `compute statistics` |
-| Apple Pages | Yes | Yes | AppleScript `count of words of body text` |
-| Scrivener | Yes | No | No scripting API (confirmed by the developers) |
-| Ulysses | Yes | No | x-callback API exists but exposes no count and cannot identify the active sheet |
-| LibreOffice | Yes | No | UNO `getWordCount` needs an enabled socket/macro bridge, not a supported macOS automation API |
-| Obsidian | Yes | No | Electron; no AppleScript, and counting would mean reading the vault |
-| Chrome / Brave / Edge / Safari | Yes | No | JS from Apple Events is off by default; Google Docs renders to canvas |
-| Lacuna Book Formatter | Yes | No | Internal `get_word_count` only; no external API, URL scheme or AppleScript |
+### Word-count applications
 
-Time-only applications show "Word count unavailable" rather than a guess. We do
-not read document/sheet/project files to manufacture a count.
+| Application | Mechanism |
+|---|---|
+| Microsoft Word | AppleScript `compute statistics` |
+| Apple Pages | AppleScript `count of words of body text` |
 
-Time-only applications show "Word count unavailable" rather than a guess.
+### Time-only applications
+
+| Application | Why there is no word count |
+|---|---|
+| Scrivener | No scripting API (confirmed by the developers) |
+| Ulysses | x-callback API exists but exposes no count and cannot identify the active sheet |
+| LibreOffice | UNO `getWordCount` needs an enabled socket/macro bridge, not a supported macOS automation API |
+| Obsidian | Electron; no AppleScript, and counting would mean reading the vault |
+| Chrome / Brave / Edge / Safari | JavaScript from Apple Events is off by default; Google Docs renders to canvas |
+| Lacuna Book Formatter | Internal `get_word_count` only; no external API, URL scheme, or AppleScript |
+
+Any other application can still be added and tracked for time and focus.
 
 ---
 
@@ -57,59 +64,33 @@ Time-only applications show "Word count unavailable" rather than a guess.
 - **Statistics engine** for daily/weekly/monthly/yearly/lifetime totals, streaks,
   goals, productivity patterns and completion projections.
 - **Full GUI**: dashboard, statistics, calendar heatmap, sessions, projects,
-  goals, reports, achievements, community, settings and a Permission Center.
-- **Optional community sharing**: opt-in leaderboards and following, built on a
-  pluggable `SocialBackend` with a local JSON placeholder until an online service
-  exists. Only aggregate numbers are ever shared.
-- **Dedicated Privacy screen**: a plain-language explanation of what is tracked,
-  how AppleScript is used to read word counts, and which macOS prompts may appear.
+  goals, reports, achievements, settings and a Permission Center.
 - **CSV/JSON export**, verified database backups, and safe destructive operations.
-- **Privacy by design**: no manuscript text, keystrokes, clipboard, or screenshots.
+- **Privacy by design**: no manuscript text, keystrokes, clipboard, screenshots, or cloud.
 
 ---
 
-## Building from source
+## Requirements
 
-### Dependencies
+- macOS 13 or later
+- Xcode 15+ / Swift 5.9+ toolchain
+- The Swift package has **no third-party dependencies** (SQLite is a system library).
 
-Yakitori has **no third-party dependencies**. There is nothing to install with
-Homebrew, CocoaPods, or a package manager. It links only Apple system frameworks:
-
-- **SQLite3** (system library) for local storage
-- **SwiftUI**, **AppKit** and **Charts** for the interface
-- **Carbon** (global hotkey), **ApplicationServices** (Accessibility),
-  **ServiceManagement** (launch at login), **UserNotifications**
-
-### Requirements
-
-- macOS 13 (Ventura) or later
-- Xcode 15 or later, or the Swift 5.9+ command-line toolchain with the macOS SDK
-- No external packages are downloaded at any point
-
-### Build and run
+## Build & run
 
 ```bash
-# Compile and run the test suite
+# Build and test the core library and app
 swift build
 swift test
 
-# Build a launchable .app bundle and open it
+# Build a launchable .app bundle (recommended for permissions/login item)
 ./Scripts/build-app.sh release
 open dist/Yakitori.app
 ```
 
-`Scripts/build-app.sh` compiles a release build, assembles `dist/Yakitori.app`
-with its `Info.plist` and resource bundle, and ad-hoc signs it. No Apple
-Developer account is required.
-
 Yakitori is a menu bar utility (`LSUIElement`), so it has no Dock icon until the
 dashboard is open. Click the flame icon in the menu bar to open the popover, then
 **Dashboard**.
-
-On first run macOS may ask for **Accessibility** (activity detection) and
-**Automation** (to read Word/Pages word counts). Both are optional; the app keeps
-working without them. Because development builds are ad-hoc signed, permissions
-may need to be re-granted after rebuilding.
 
 The database lives at:
 
@@ -222,13 +203,6 @@ export, backup, and destructive-operation safety.
   when the dashboard is closed) rather than as a separate XPC/LaunchAgent.
   The engine is GUI-independent and the boundary would allow extracting it later.
 - Automatic project inference is rule-based as documented; no ML inference.
-- **Community/leaderboards** currently use a local JSON placeholder
-  (`~/Library/Application Support/Yakitori/community.json`). Real, multi-user
-  leaderboards and following need a backend service; the client already speaks
-  the `CommunityData` shape so a server can be added without UI changes.
-- **Widgets are not implemented** — WidgetKit requires an app-extension target in
-  an Xcode project, which the current Swift Package + build-script packaging does
-  not produce.
 - Widgets, cloud sync, accounts, AI analysis and monetization enforcement are
-  not implemented yet (roadmap phases scheduled for later), though
+  intentionally not implemented (roadmap phases scheduled for later), though
   `Entitlement`/`FeatureFlags` abstractions exist.

@@ -45,10 +45,15 @@ struct OnboardingView: View {
     }
 
     private var applicationsStep: some View {
-        let apps = (try? state.container.applicationRepository.all()) ?? []
+        let apps = ((try? state.container.applicationRepository.all()) ?? [])
+            .sorted { lhs, rhs in
+                let l = onboardingSupportsWordCount(lhs), r = onboardingSupportsWordCount(rhs)
+                if l != r { return l }
+                return lhs.displayName.localizedCaseInsensitiveCompare(rhs.displayName) == .orderedAscending
+            }
         return VStack(alignment: .leading, spacing: 14) {
             Text("Choose writing applications").font(.title2.weight(.semibold))
-            Text("Only selected applications count toward automatic tracking. You can change this later.")
+            Text("Only Microsoft Word and Apple Pages can report an exact word count. Other apps are tracked for time and focus only. You can change this later in Settings.")
                 .foregroundStyle(.secondary)
             if apps.isEmpty {
                 Text("No known writing applications detected on this Mac.")
@@ -58,9 +63,14 @@ struct OnboardingView: View {
                     VStack(alignment: .leading, spacing: 8) {
                         ForEach(apps) { app in
                             Toggle(isOn: applicationBinding(app)) {
-                                VStack(alignment: .leading, spacing: 1) {
+                                HStack(spacing: 6) {
                                     Text(app.displayName)
-                                    Text(app.adapterType.displayName).font(.caption).foregroundStyle(.secondary)
+                                    Text(onboardingSupportsWordCount(app) ? "Word count" : "Time only")
+                                        .font(.caption2.weight(.medium))
+                                        .padding(.horizontal, 6).padding(.vertical, 2)
+                                        .background((onboardingSupportsWordCount(app) ? Theme.accent : Color.secondary).opacity(0.15))
+                                        .foregroundStyle(onboardingSupportsWordCount(app) ? Theme.accent : Color.secondary)
+                                        .clipShape(Capsule())
                                 }
                             }
                         }
@@ -70,6 +80,10 @@ struct OnboardingView: View {
             }
         }
         .padding(28)
+    }
+
+    private func onboardingSupportsWordCount(_ app: WritingApplication) -> Bool {
+        app.adapterType == .word || app.adapterType == .pages
     }
 
     private var modeStep: some View {
