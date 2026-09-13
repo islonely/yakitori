@@ -2,6 +2,7 @@
 ## Implementation Roadmap for Coding AI
 
 **Document status:** Implementation specification  
+**Repository:** git@github.com:islonely/yakitori.git (all completed commits are pushed here)  
 **Target platform:** macOS  
 **Primary stack:** Swift + SwiftUI  
 **Architecture:** Native menu bar app + persistent background tracking service + local database  
@@ -2227,7 +2228,7 @@ The coding AI must:
 3. Prefer migrations over destructive database changes.
 4. Make one logical change at a time.
 5. Run tests after each significant change.
-6. Commit completed logical changes to Git.
+6. Commit completed logical changes to Git and push them to the project's remote repository (`origin`, git@github.com:islonely/yakitori.git).
 7. Never commit secrets.
 8. Never log manuscript content.
 9. Never add permissions that are not required.

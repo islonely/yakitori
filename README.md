@@ -8,8 +8,9 @@ statistics, and presents analytics — **without ever recording the words you ty
 
 This repository implements the product described in
 [`DESIGN_DOCUMENT.md`](DESIGN_DOCUMENT.md) and the
-[`IMPLEMENTATION_ROADMAP.md`](IMPLEMENTATION_ROADMAP.md). [`AGENTS.md`](AGENTS.md)
-contains the operating rules used while building it.
+[`IMPLEMENTATION_ROADMAP.md`](IMPLEMENTATION_ROADMAP.md).
+
+Repository: https://github.com/islonely/yakitori
 
 ---
 
