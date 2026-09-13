@@ -37,7 +37,6 @@ struct StatisticsView: View {
                 }
                 recordsSection
                 lifetimeSection
-                patternsSection
             }
             .padding(24)
         }
@@ -45,7 +44,7 @@ struct StatisticsView: View {
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 Picker("Range", selection: $range) {
-                    ForEach(DateRangeOption.allCases.filter { $0 != .custom && $0 != .allTime }) { option in
+                    ForEach(DateRangeOption.allCases.filter { $0 != .allTime }) { option in
                         Text(option.title).tag(option)
                     }
                 }
@@ -68,9 +67,11 @@ struct StatisticsView: View {
     }
 
     private var writingClockCard: some View {
-        let hourly = statistics.hourlyStatistics(for: Date()).map { Double($0.netWords) }
+        let cells = statistics.hourWeekdayMatrix(from: interval.start, to: interval.end)
+        var hourly = [Double](repeating: 0, count: 24)
+        for cell in cells { hourly[cell.hour] += Double(cell.words) }
         return VStack(alignment: .leading, spacing: 12) {
-            SectionHeader(title: "Writing clock", subtitle: "Today by hour")
+            SectionHeader(title: "Writing clock", subtitle: "Words by hour, \(range.title.lowercased())")
             HStack { Spacer(); WritingClock(values: hourly, size: 200); Spacer() }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -239,19 +240,6 @@ struct StatisticsView: View {
         return values[values.count / 2]
     }
 
-    private var dailyOutputChart: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            SectionHeader(title: "Daily output", subtitle: range.title)
-            Chart(days, id: \.dayKey) { day in
-                BarMark(x: .value("Date", day.date, unit: .day), y: .value("Words", day.netWords))
-                    .foregroundStyle(day.netWords >= 0 ? Theme.accent : Color.orange)
-                    .cornerRadius(2)
-            }
-            .frame(height: 220)
-        }
-        .cardStyle()
-    }
-
     private var activeTimeChart: some View {
         VStack(alignment: .leading, spacing: 12) {
             SectionHeader(title: "Daily active time", subtitle: "minutes")
@@ -260,53 +248,6 @@ struct StatisticsView: View {
                     .foregroundStyle(Theme.accent.opacity(0.25).gradient)
                 LineMark(x: .value("Date", day.date, unit: .day), y: .value("Minutes", day.activeSeconds / 60))
                     .foregroundStyle(Theme.accent)
-            }
-            .frame(height: 200)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .cardStyle()
-    }
-
-    private var timeOfDayChart: some View {
-        let patterns = statistics.productivityPatterns()
-        return VStack(alignment: .leading, spacing: 12) {
-            SectionHeader(title: "Time of day", subtitle: "net words by hour (all time)")
-            Chart(patterns.byHour, id: \.hour) { hour in
-                BarMark(x: .value("Hour", hour.hour), y: .value("Words", hour.netWords))
-                    .foregroundStyle(Theme.accent.gradient)
-            }
-            .frame(height: 200)
-            if !patterns.hasSufficientData {
-                Text("Not enough data yet for reliable patterns.")
-                    .font(.caption).foregroundStyle(.secondary)
-            }
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .cardStyle()
-    }
-
-    private var weekdayChart: some View {
-        let patterns = statistics.productivityPatterns()
-        return VStack(alignment: .leading, spacing: 12) {
-            SectionHeader(title: "Day of week", subtitle: "average words")
-            Chart(patterns.byWeekday, id: \.weekday) { day in
-                BarMark(x: .value("Weekday", weekdayName(day.weekday)), y: .value("Words", day.averageWords))
-                    .foregroundStyle(Theme.accent.gradient)
-            }
-            .frame(height: 200)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .cardStyle()
-    }
-
-    private var durationChart: some View {
-        let sessions = (try? state.container.sessions.allSessions()) ?? []
-        let buckets = durationBuckets(sessions)
-        return VStack(alignment: .leading, spacing: 12) {
-            SectionHeader(title: "Session length", subtitle: "number of sessions")
-            Chart(buckets, id: \.label) { bucket in
-                BarMark(x: .value("Length", bucket.label), y: .value("Sessions", bucket.count))
-                    .foregroundStyle(Theme.accent.gradient)
             }
             .frame(height: 200)
         }
@@ -325,65 +266,10 @@ struct StatisticsView: View {
                 MetricTile(title: "Sessions", value: Format.int(lifetime.totalSessions), systemImage: "rectangle.stack")
                 MetricTile(title: "Projects", value: Format.int(lifetime.projectCount), systemImage: "books.vertical")
                 MetricTile(title: "Completed", value: Format.int(lifetime.completedProjects), systemImage: "checkmark.seal")
-                MetricTile(title: "Longest streak", value: "\(lifetime.longestStreak) days", systemImage: "flame")
-                MetricTile(title: "Best WPM", value: lifetime.bestWordsPerMinute.map { Format.decimal($0) } ?? "—", systemImage: "speedometer")
+                MetricTile(title: "First tracked", value: lifetime.firstTrackedDay.map { Format.shortDayYear.string(from: $0) } ?? "—", systemImage: "flag")
+                MetricTile(title: "Avg / session", value: Format.int(Int(lifetime.averageWordsPerSession.rounded())), systemImage: "chart.bar")
             }
         }
         .cardStyle()
-    }
-
-    private var patternsSection: some View {
-        let lifetime = statistics.lifetimeStatistics()
-        return VStack(alignment: .leading, spacing: 12) {
-            SectionHeader(title: "Highlights")
-            if let bestDay = lifetime.bestDay {
-                highlight("Best writing day", "\(Format.int(bestDay.words)) words on \(Format.shortDayYear.string(from: bestDay.date))")
-            }
-            if let bestSession = lifetime.bestSessionWords {
-                highlight("Best session", "\(Format.int(bestSession)) net words")
-            }
-            if let year = lifetime.mostProductiveYear {
-                highlight("Most productive year", year)
-            }
-            if let month = lifetime.mostProductiveMonth {
-                highlight("Most productive month", month)
-            }
-            if let first = lifetime.firstTrackedDay {
-                highlight("First tracked day", Format.shortDayYear.string(from: first))
-            }
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .cardStyle()
-    }
-
-    private func highlight(_ title: String, _ value: String) -> some View {
-        HStack {
-            Text(title).foregroundStyle(.secondary)
-            Spacer()
-            Text(value).fontWeight(.medium)
-        }
-        .font(.callout)
-    }
-
-    private func weekdayName(_ weekday: Int) -> String {
-        let symbols = statistics.calendar.calendar.weekdaySymbols
-        let index = weekday - 1
-        guard index >= 0 && index < symbols.count else { return "?" }
-        return String(symbols[index].prefix(3))
-    }
-
-    private func durationBuckets(_ sessions: [Session]) -> [(label: String, count: Int)] {
-        var buckets = [("<15m", 0), ("15–30m", 0), ("30–60m", 0), ("1–2h", 0), ("2h+", 0)]
-        for session in sessions {
-            let minutes = session.activeSeconds / 60
-            switch minutes {
-            case ..<15: buckets[0].1 += 1
-            case ..<30: buckets[1].1 += 1
-            case ..<60: buckets[2].1 += 1
-            case ..<120: buckets[3].1 += 1
-            default: buckets[4].1 += 1
-            }
-        }
-        return buckets.map { (label: $0.0, count: $0.1) }
     }
 }

@@ -227,8 +227,6 @@ struct SettingsView: View {
             Text("Placeholder entries so you can see the leaderboard layout. They disappear once a real community service is connected.")
                 .font(.caption).foregroundStyle(.secondary)
             HStack {
-                Button("Publish Now") { state.publishCommunityStats() }
-                    .disabled(!state.settings.publishStatsEnabled)
                 Button("Reveal Community Data") {
                     let url = AppPaths.communityDataURL
                     if !FileManager.default.fileExists(atPath: url.path) {
@@ -237,21 +235,23 @@ struct SettingsView: View {
                     }
                     NSWorkspace.shared.activateFileViewerSelecting([url])
                 }
+                Button("Open Community") {
+                    state.selectedSection = .community
+                }
+                .buttonStyle(.link)
             }
         }
     }
 
     private var privacySection: some View {
-        settingsCard("Privacy", subtitle: "Yakitori tracks activity, not content") {
-            privacyRow("Manuscript text", "Never stored")
-            privacyRow("Keyboard contents", "Never stored")
-            privacyRow("Clipboard", "Not accessed")
-            privacyRow("Screenshots", "Not taken")
-            privacyRow("Cloud sync", "Disabled")
-            privacyRow("Analytics", "Local only")
+        settingsCard("Privacy", subtitle: "See the Privacy tab for the full explanation") {
             Toggle("Enable optional diagnostics", isOn: binding(\.diagnosticsEnabled))
-            Text("Diagnostics, when enabled, never include document names, paths, or manuscript text.")
+            Text("Diagnostics never include document names, paths, manuscript text, or typed characters.")
                 .font(.caption).foregroundStyle(.secondary)
+            Button("Open Privacy & Permissions") {
+                state.selectedSection = .privacy
+            }
+            .buttonStyle(.link)
         }
     }
 
@@ -341,14 +341,6 @@ struct SettingsView: View {
     }
 
     // MARK: - Actions
-
-    private func privacyRow(_ title: String, _ value: String) -> some View {
-        HStack {
-            Text(title)
-            Spacer()
-            Text(value).foregroundStyle(.secondary)
-        }
-    }
 
     private func settingsCard<Content: View>(_ title: String, subtitle: String? = nil, @ViewBuilder content: () -> Content) -> some View {
         VStack(alignment: .leading, spacing: 12) {

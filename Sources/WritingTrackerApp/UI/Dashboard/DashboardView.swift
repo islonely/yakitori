@@ -20,10 +20,7 @@ struct DashboardView: View {
                     rollingAverageCard
                 }
                 momentumCard
-                HStack(alignment: .top, spacing: 16) {
-                    currentProjectCard
-                    goalCard
-                }
+                currentProjectCard
                 goalsGrid
                 recentSessionsCard
             }
@@ -174,31 +171,6 @@ struct DashboardView: View {
                 }
             } else {
                 Text("No current project selected.")
-                    .foregroundStyle(.secondary)
-            }
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .cardStyle()
-    }
-
-    private var goalCard: some View {
-        let progress = statistics.goalProgress().first
-        return VStack(alignment: .leading, spacing: 12) {
-            SectionHeader(title: "Goal")
-            if let progress {
-                VStack(alignment: .leading, spacing: 8) {
-                    Text(progress.goal.period.displayName + " · " + progress.goal.metric.displayName)
-                        .font(.subheadline)
-                    ProgressView(value: min(1, progress.fraction))
-                    Text("\(Format.int(Int(progress.currentValue))) of \(Format.int(Int(progress.goal.target))) \(progress.goal.metric.unit)")
-                        .font(.caption).foregroundStyle(.secondary)
-                    if progress.isComplete {
-                        Label("Goal reached", systemImage: "checkmark.circle.fill")
-                            .font(.caption).foregroundStyle(.green)
-                    }
-                }
-            } else {
-                Text("No goals configured yet. Add one in Goals.")
                     .foregroundStyle(.secondary)
             }
         }

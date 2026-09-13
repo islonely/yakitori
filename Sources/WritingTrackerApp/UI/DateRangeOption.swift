@@ -11,7 +11,6 @@ enum DateRangeOption: String, CaseIterable, Identifiable {
     case thisYear
     case lastYear
     case allTime
-    case custom
 
     var id: String { rawValue }
 
@@ -26,14 +25,13 @@ enum DateRangeOption: String, CaseIterable, Identifiable {
         case .thisYear: return "This year"
         case .lastYear: return "Last year"
         case .allTime: return "All time"
-        case .custom: return "Custom"
         }
     }
 
     /// The granularity used for charts.
     var isSingleDay: Bool { self == .today || self == .yesterday }
 
-    func interval(calendar: CalendarContext, customStart: Date? = nil, customEnd: Date? = nil) -> DateInterval {
+    func interval(calendar: CalendarContext) -> DateInterval {
         let now = Date()
         switch self {
         case .today:
@@ -64,10 +62,6 @@ enum DateRangeOption: String, CaseIterable, Identifiable {
             return DateInterval(start: start, end: thisYear)
         case .allTime:
             return DateInterval(start: .distantPast, end: calendar.addingDays(1, to: calendar.startOfDay(for: now)))
-        case .custom:
-            let start = calendar.startOfDay(for: customStart ?? now)
-            let end = calendar.endOfDay(for: customEnd ?? now)
-            return DateInterval(start: start, end: end)
         }
     }
 }

@@ -85,7 +85,7 @@ Any other application can still be added and tracked for time and focus.
   session efficiency scatter, pace trend and distribution, focus vs active
   stacks, project mix, session-type stacks, streak history, added vs removed,
   personal records, projection cones, burn-down, per-document history, milestone
-  timelines, project comparison, year-in-pixels, and a months-by-years grid.
+  timelines, project comparison, and a months-by-years grid.
 - **CSV/JSON export**, verified database backups, and safe destructive operations.
 - **Privacy by design**: no manuscript text, keystrokes, clipboard, or screenshots.
 

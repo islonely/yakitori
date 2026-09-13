@@ -1505,7 +1505,6 @@ Project and career:
 - Milestone timeline.
 - Project comparison.
 - Career output by year and project type.
-- Year in pixels.
 
 Avoid decorative charts with no useful information.
 
@@ -1528,7 +1527,6 @@ Clicking a day opens daily detail.
 Additional views:
 
 - A daily bar chart for the selected day's month.
-- Year in pixels (a compact month x day grid for the last year).
 
 Daily detail:
 

@@ -27,7 +27,6 @@ struct ProjectDetailView: View {
                 VStack(alignment: .leading, spacing: 20) {
                     header(project)
                     progressCards(project, stats)
-                    statsGrid(stats)
                     projections(stats)
                     charts(project)
                     milestonesSection
@@ -129,10 +128,6 @@ struct ProjectDetailView: View {
                 MetricTile(title: "Net words", value: Format.int(stats.netWords))
             }
         }
-    }
-
-    private func statsGrid(_ stats: ProjectStatistics) -> some View {
-        EmptyView()
     }
 
     private func projections(_ stats: ProjectStatistics) -> some View {
@@ -442,22 +437,6 @@ struct ProjectDetailView: View {
         } catch {
             state.presentError(error)
         }
-    }
-
-    private func cumulativePoints(_ project: Project) -> [(date: Date, words: Int)] {
-        let sorted = sessions.sorted { $0.startedAt < $1.startedAt }
-        var running = project.startingWordCount
-        var points: [(Date, Int)] = [(project.createdAt, running)]
-        for session in sorted {
-            if let ending = session.endingWordCount {
-                running = ending
-                points.append((session.endedAt ?? session.startedAt, running))
-            } else if let net = session.netWordChange {
-                running += net
-                points.append((session.endedAt ?? session.startedAt, running))
-            }
-        }
-        return points.map { (date: $0.0, words: $0.1) }
     }
 
     private func projectDailyStats() -> [(date: Date, words: Int)] {

@@ -1277,7 +1277,6 @@ Clicking a day opens detailed statistics.
 Additional calendar views:
 
 - A daily bar chart for the selected day's month.
-- Year in pixels: a compact month x day grid covering the last year.
 
 ---
 
@@ -2605,7 +2604,7 @@ Implemented chart types:
 
 - Bar, line, area and stacked bar
 - Scatter (point) and diverging bar (added vs removed)
-- Heatmap (calendar, 7x24 day/hour, months x years, year in pixels)
+- Heatmap (calendar, 7x24 day/hour, months x years)
 - Radial 24-hour "writing clock"
 - Progress rings and goal gauges
 - Projection cone and burn-down

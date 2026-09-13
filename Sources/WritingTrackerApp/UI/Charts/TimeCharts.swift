@@ -80,20 +80,18 @@ struct HourlyBars: View {
 }
 
 enum MatrixMetric: String, CaseIterable, Identifiable {
-    case words, activeMinutes, sessions
+    case words, activeMinutes
     var id: String { rawValue }
     var title: String {
         switch self {
         case .words: return "Words"
         case .activeMinutes: return "Active time"
-        case .sessions: return "Sessions"
         }
     }
     func value(_ cell: HourWeekdayCell) -> Double {
         switch self {
         case .words: return Double(cell.words)
         case .activeMinutes: return cell.activeSeconds / 60
-        case .sessions: return 0
         }
     }
 }

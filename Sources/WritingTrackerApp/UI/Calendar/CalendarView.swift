@@ -58,7 +58,6 @@ struct CalendarView: View {
                 heatmap(weeks)
                 legend
                 monthBarsCard
-                yearInPixelsCard
                 if let selectedDay {
                     dailyDetail(selectedDay)
                 } else {
@@ -167,16 +166,6 @@ struct CalendarView: View {
                     .cornerRadius(2)
             }
             .frame(height: 140)
-        }
-        .cardStyle()
-    }
-
-    private var yearInPixelsCard: some View {
-        let end = calendar.startOfDay(for: Date())
-        let days = statistics.dailyStatistics(from: calendar.addingDays(-364, to: end), to: end)
-        return VStack(alignment: .leading, spacing: 12) {
-            SectionHeader(title: "Year in pixels", subtitle: metric.title)
-            YearInPixelsView(days: days, metric: metric)
         }
         .cardStyle()
     }
