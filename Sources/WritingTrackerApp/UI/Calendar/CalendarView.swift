@@ -1,4 +1,5 @@
 import SwiftUI
+import Charts
 import WritingTrackerCore
 
 enum HeatmapMetric: String, CaseIterable, Identifiable {
@@ -56,6 +57,8 @@ struct CalendarView: View {
                 }
                 heatmap(weeks)
                 legend
+                monthBarsCard
+                yearInPixelsCard
                 if let selectedDay {
                     dailyDetail(selectedDay)
                 } else {
@@ -150,6 +153,32 @@ struct CalendarView: View {
             }
             Text("More").font(.caption).foregroundStyle(.secondary)
         }
+    }
+
+    private var monthBarsCard: some View {
+        let monthStart = calendar.startOfMonth(for: selectedDay?.date ?? Date())
+        let monthEnd = calendar.calendar.date(byAdding: .month, value: 1, to: monthStart) ?? calendar.addingDays(31, to: monthStart)
+        let days = statistics.dailyStatistics(from: monthStart, to: calendar.addingDays(-1, to: monthEnd))
+        return VStack(alignment: .leading, spacing: 12) {
+            SectionHeader(title: Format.monthYear.string(from: monthStart), subtitle: "Daily output")
+            Chart(days, id: \.dayKey) { day in
+                BarMark(x: .value("Day", day.date, unit: .day), y: .value("Words", day.netWords))
+                    .foregroundStyle(Theme.ember.gradient)
+                    .cornerRadius(2)
+            }
+            .frame(height: 140)
+        }
+        .cardStyle()
+    }
+
+    private var yearInPixelsCard: some View {
+        let end = calendar.startOfDay(for: Date())
+        let days = statistics.dailyStatistics(from: calendar.addingDays(-364, to: end), to: end)
+        return VStack(alignment: .leading, spacing: 12) {
+            SectionHeader(title: "Year in pixels", subtitle: metric.title)
+            YearInPixelsView(days: days, metric: metric)
+        }
+        .cardStyle()
     }
 
     private func dailyDetail(_ stat: DailyStatistics) -> some View {

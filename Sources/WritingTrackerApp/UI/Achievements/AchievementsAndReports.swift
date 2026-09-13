@@ -87,6 +87,8 @@ struct ReportsView: View {
                 }
                 controls
                 reportContent
+                outputByMonthCard
+                careerOutputCard
             }
             .padding(24)
         }
@@ -174,6 +176,11 @@ struct ReportsView: View {
                   let comparisons = try? reports.projectComparison(a, b) {
             VStack(alignment: .leading, spacing: 12) {
                 SectionHeader(title: "\(a.title) vs \(b.title)")
+                ProjectComparisonChart(
+                    items: [(a.title, Double(a.currentWordCount)), (b.title, Double(b.currentWordCount))],
+                    isTime: false,
+                    height: 160
+                )
                 ForEach(comparisons) { comparison in
                     HStack {
                         Text(comparison.label).foregroundStyle(.secondary)
@@ -189,6 +196,34 @@ struct ReportsView: View {
         } else {
             EmptyView()
         }
+    }
+
+    private var outputByMonthCard: some View {
+        let cells = state.container.statistics.monthlyYearMatrix()
+        return VStack(alignment: .leading, spacing: 12) {
+            SectionHeader(title: "Output by month", subtitle: "Net words")
+            if cells.isEmpty {
+                Text("No history yet.").foregroundStyle(.secondary)
+            } else {
+                MonthlyYearGrid(cells: cells)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .cardStyle()
+    }
+
+    private var careerOutputCard: some View {
+        let points = state.container.statistics.careerOutputByYearType()
+        return VStack(alignment: .leading, spacing: 12) {
+            SectionHeader(title: "Career output", subtitle: "By year and project type")
+            if points.isEmpty {
+                Text("No history yet.").foregroundStyle(.secondary)
+            } else {
+                CareerOutputChart(points: points)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .cardStyle()
     }
 
     private func formatNumber(_ value: Double, isTime: Bool) -> String {

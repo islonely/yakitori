@@ -67,6 +67,7 @@ struct MenuBarPopover: View {
                     .foregroundStyle(.orange)
                 Text("\(streak) day streak").font(.callout)
             }
+            HourlyBars(values: statistics.hourlyStatistics(for: Date()).map { Double($0.netWords) }, height: 40)
         }
     }
 

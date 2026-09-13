@@ -17,12 +17,14 @@ struct DashboardView: View {
                 if range.isSingleDay {
                     timelineCard
                 } else {
-                    trendCard
+                    rollingAverageCard
                 }
+                momentumCard
                 HStack(alignment: .top, spacing: 16) {
                     currentProjectCard
                     goalCard
                 }
+                goalsGrid
                 recentSessionsCard
             }
             .padding(24)
@@ -102,22 +104,49 @@ struct DashboardView: View {
         .cardStyle()
     }
 
-    private var trendCard: some View {
+    private var rollingAverageCard: some View {
         let interval = range.interval(calendar: calendar)
         let start = range == .allTime ? calendar.addingDays(-89, to: calendar.startOfDay(for: Date())) : interval.start
         let days = statistics.dailyStatistics(from: start, to: calendar.addingDays(-1, to: interval.end))
         return VStack(alignment: .leading, spacing: 12) {
-            SectionHeader(title: "Daily output", subtitle: range == .allTime ? "Last 90 days" : range.title)
-            Chart(days, id: \.dayKey) { day in
-                BarMark(
-                    x: .value("Date", day.date, unit: .day),
-                    y: .value("Words", day.netWords)
-                )
-                .foregroundStyle(Theme.accent.gradient)
-                .cornerRadius(2)
-            }
-            .frame(height: 200)
+            SectionHeader(title: "Daily output with trend", subtitle: "Bars plus 7-day and 30-day averages")
+            RollingAverageChart(days: days)
         }
+        .cardStyle()
+    }
+
+    private var momentumCard: some View {
+        let points = statistics.weekdayMomentum(reference: Date())
+        return VStack(alignment: .leading, spacing: 12) {
+            SectionHeader(title: "This week vs last week", subtitle: "Net words by weekday")
+            MomentumChart(points: points)
+        }
+        .cardStyle()
+    }
+
+    private var goalsGrid: some View {
+        let progress = statistics.goalProgress()
+        return VStack(alignment: .leading, spacing: 12) {
+            SectionHeader(title: "Goal progress")
+            if progress.isEmpty {
+                Text("No goals configured yet. Add one in Goals.").foregroundStyle(.secondary)
+            } else {
+                LazyVGrid(columns: [GridItem(.adaptive(minimum: 150), spacing: 16)], spacing: 16) {
+                    ForEach(progress) { item in
+                        VStack(spacing: 6) {
+                            ProgressRing(fraction: item.fraction, lineWidth: 8)
+                                .scaleEffect(0.72)
+                                .frame(height: 78)
+                            Text(item.goal.period.displayName + " · " + item.goal.metric.displayName)
+                                .font(.caption)
+                            Text("\(Format.int(Int(item.currentValue))) / \(Format.int(Int(item.goal.target)))")
+                                .font(.caption2).foregroundStyle(.secondary)
+                        }
+                    }
+                }
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
         .cardStyle()
     }
 

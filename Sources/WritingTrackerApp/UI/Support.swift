@@ -64,6 +64,28 @@ enum Format {
         guard let end else { return time.string(from: start) }
         return "\(time.string(from: start)) – \(time.string(from: end))"
     }
+
+    /// Short weekday name for a Foundation weekday value (1 = Sunday).
+    static func shortWeekday(_ weekday: Int) -> String {
+        let symbols = Calendar.current.shortWeekdaySymbols
+        let index = weekday - 1
+        guard index >= 0 && index < symbols.count else { return "?" }
+        return symbols[index]
+    }
+
+    static func hourLabel(_ hour: Int) -> String {
+        let suffix = hour < 12 ? "AM" : "PM"
+        let display = hour % 12 == 0 ? 12 : hour % 12
+        return "\(display)\(suffix)"
+    }
+
+    /// Short month name for a 1-based month number.
+    static func shortMonth(_ month: Int) -> String {
+        let symbols = Calendar.current.shortMonthSymbols
+        let index = month - 1
+        guard index >= 0 && index < symbols.count else { return "?" }
+        return symbols[index]
+    }
 }
 
 extension View {

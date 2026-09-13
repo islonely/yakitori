@@ -79,9 +79,15 @@ Any other application can still be added and tracked for time and focus.
 - **Statistics engine** for daily/weekly/monthly/yearly/lifetime totals, streaks,
   goals, productivity patterns and completion projections.
 - **Full GUI**: dashboard, statistics, calendar heatmap, sessions, projects,
-  goals, reports, achievements, settings and a Permission Center.
+  goals, reports, achievements, community, settings and a Permission Center.
+- **A deep chart set**: rolling averages with 7/30-day trends, this-week vs
+  last-week momentum, a 7x24 day/hour heatmap, a radial 24-hour "writing clock",
+  session efficiency scatter, pace trend and distribution, focus vs active
+  stacks, project mix, session-type stacks, streak history, added vs removed,
+  personal records, projection cones, burn-down, per-document history, milestone
+  timelines, project comparison, year-in-pixels, and a months-by-years grid.
 - **CSV/JSON export**, verified database backups, and safe destructive operations.
-- **Privacy by design**: no manuscript text, keystrokes, clipboard, screenshots, or cloud.
+- **Privacy by design**: no manuscript text, keystrokes, clipboard, or screenshots.
 
 ---
 
@@ -215,6 +221,10 @@ export, backup, and destructive-operation safety.
   when the dashboard is closed) rather than as a separate XPC/LaunchAgent.
   The engine is GUI-independent and the boundary would allow extracting it later.
 - Automatic project inference is rule-based as documented; no ML inference.
+- **Typing pace (WPM) is derived** from growth in a document's character count
+  (5 characters = 1 word). Deletions and modifier keys add nothing, but pasted
+  text counts, and it only exists for Word/Pages sessions where character counts
+  are available. It is not per-keystroke counting.
 - Widgets, cloud sync, accounts, AI analysis and monetization enforcement are
   intentionally not implemented (roadmap phases scheduled for later), though
   `Entitlement`/`FeatureFlags` abstractions exist.

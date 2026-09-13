@@ -164,26 +164,56 @@ struct ProjectDetailView: View {
     }
 
     private func charts(_ project: Project) -> some View {
-        HStack(alignment: .top, spacing: 16) {
-            cumulativeChart(project)
-            dailyChart
+        VStack(spacing: 16) {
+            HStack(alignment: .top, spacing: 16) {
+                projectionChart(project)
+                burnDownChart(project)
+            }
+            HStack(alignment: .top, spacing: 16) {
+                documentChart
+                dailyChart
+            }
         }
     }
 
-    private func cumulativeChart(_ project: Project) -> some View {
-        let points = cumulativePoints(project)
+    private func projectionChart(_ project: Project) -> some View {
+        let cumulative = statistics.cumulativeProjectSeries(projectID: project.id)
+        let projections = stats?.projections ?? []
         return VStack(alignment: .leading, spacing: 12) {
-            SectionHeader(title: "Cumulative progress")
-            if points.isEmpty {
-                Text("No word-count history yet.").foregroundStyle(.secondary).frame(height: 180)
+            SectionHeader(title: "Cumulative progress", subtitle: "With pace projections")
+            if cumulative.count < 2 {
+                Text("No word-count history yet.").foregroundStyle(.secondary).frame(height: 200)
             } else {
-                Chart(points, id: \.date) { point in
-                    LineMark(x: .value("Date", point.date), y: .value("Words", point.words))
-                        .foregroundStyle(Theme.accent)
-                    AreaMark(x: .value("Date", point.date), y: .value("Words", point.words))
-                        .foregroundStyle(Theme.accent.opacity(0.15).gradient)
-                }
-                .frame(height: 180)
+                ProjectionConeChart(cumulative: cumulative, target: project.targetWordCount, projections: projections)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .cardStyle()
+    }
+
+    private func burnDownChart(_ project: Project) -> some View {
+        let cumulative = statistics.cumulativeProjectSeries(projectID: project.id)
+        let required = statistics.deadlinePaceSeries(projectID: project.id)
+        return VStack(alignment: .leading, spacing: 12) {
+            SectionHeader(title: "Burn-down", subtitle: "Remaining words vs required pace")
+            if let target = project.targetWordCount, cumulative.count >= 2, !required.isEmpty {
+                BurnDownChart(cumulative: cumulative, target: target, required: required)
+            } else {
+                Text("Set a target and deadline to see this chart.").foregroundStyle(.secondary).frame(height: 200)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .cardStyle()
+    }
+
+    private var documentChart: some View {
+        let series = statistics.documentWordCountSeries(projectID: projectID)
+        return VStack(alignment: .leading, spacing: 12) {
+            SectionHeader(title: "By document")
+            if series.isEmpty {
+                Text("No per-document history yet.").foregroundStyle(.secondary).frame(height: 200)
+            } else {
+                DocumentWordCountChart(series: series)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -211,6 +241,14 @@ struct ProjectDetailView: View {
     private var milestonesSection: some View {
         VStack(alignment: .leading, spacing: 12) {
             SectionHeader(title: "Milestones")
+            if let project {
+                MilestoneTimeline(
+                    project: project,
+                    milestones: milestones,
+                    projectedCompletion: stats?.projections.compactMap(\.projectedDate).min()
+                )
+                Divider()
+            }
             if milestones.isEmpty {
                 Text("No milestones yet.").foregroundStyle(.secondary)
             } else {

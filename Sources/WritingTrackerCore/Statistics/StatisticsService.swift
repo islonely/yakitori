@@ -10,6 +10,7 @@ public final class StatisticsService {
     private let projectRepository: ProjectRepository
     private let milestoneRepository: MilestoneRepository
     private let goalRepository: GoalRepository
+    private let snapshotRepository: WordCountSnapshotRepository
 
     public private(set) var settings: UserSettings
     public private(set) var calendar: CalendarContext
@@ -28,6 +29,7 @@ public final class StatisticsService {
         self.projectRepository = ProjectRepository(database: database)
         self.milestoneRepository = MilestoneRepository(database: database)
         self.goalRepository = GoalRepository(database: database)
+        self.snapshotRepository = WordCountSnapshotRepository(database: database)
         self.settings = settings ?? (try? SettingsRepository(database: database).load()) ?? .default
     }
 
@@ -540,5 +542,305 @@ public final class StatisticsService {
         let days = Int(ceil(Double(remaining) / pace))
         let date = calendar.addingDays(days, to: now)
         return CompletionProjection(label: label, wordsPerDay: pace, projectedDate: date, daysRemaining: days, isSufficient: true)
+    }
+
+    // MARK: - Chart data
+
+    public func sessionPoints(filter: SessionFilter = SessionFilter()) -> [SessionPoint] {
+        let sessions = (try? sessionRepository.sessions(filter: filter)) ?? []
+        let allSnapshots = (try? snapshotRepository.all()) ?? []
+        let byDocument = Dictionary(grouping: allSnapshots.compactMap { snapshot -> (String, WordCountSnapshot)? in
+            guard let id = snapshot.documentID else { return nil }
+            return (id, snapshot)
+        }, by: { $0.0 }).mapValues { $0.map(\.1).sorted { $0.timestamp < $1.timestamp } }
+
+        return sessions.map { session in
+            SessionPoint(
+                id: session.id,
+                date: session.startedAt,
+                activeMinutes: session.activeSeconds / 60,
+                netWords: session.netWordChange ?? 0,
+                pace: pace(for: session, snapshotsByDocument: byDocument),
+                sessionType: session.sessionType,
+                applicationID: session.applicationID,
+                projectID: session.projectID
+            )
+        }
+    }
+
+    /// Typing pace in words per minute, derived from growth in the document's
+    /// character count (5 characters = 1 word). Deletions and modifier keys add
+    /// nothing. This is derived from the app's character count, not per-key
+    /// counting, and it includes pasted characters.
+    public func typingPace(for session: Session) -> Double? {
+        guard let documentID = session.documentID else { return nil }
+        let snapshots = (try? snapshotRepository.snapshots(forDocument: documentID)) ?? []
+        return computePace(session: session, snapshots: snapshots)
+    }
+
+    private func pace(for session: Session, snapshotsByDocument: [String: [WordCountSnapshot]]) -> Double? {
+        guard let documentID = session.documentID else { return nil }
+        return computePace(session: session, snapshots: snapshotsByDocument[documentID] ?? [])
+    }
+
+    private func computePace(session: Session, snapshots: [WordCountSnapshot]) -> Double? {
+        guard session.activeSeconds > 0 else { return nil }
+        let end = session.endedAt ?? dateProvider.now
+        let inRange = snapshots.filter { $0.timestamp >= session.startedAt && $0.timestamp <= end }
+        let characters = inRange.compactMap(\.characterCount)
+        guard characters.count >= 2 else { return nil }
+        var added = 0
+        for index in 1..<characters.count {
+            let delta = characters[index] - characters[index - 1]
+            if delta > 0 { added += delta }
+        }
+        guard added > 0 else { return nil }
+        return (Double(added) / 5.0) / (session.activeSeconds / 60.0)
+    }
+
+    public func hourWeekdayMatrix(from start: Date, to end: Date) -> [HourWeekdayCell] {
+        let sessions = (try? sessionRepository.sessions(in: DateInterval(start: start, end: end))) ?? []
+        var words = [Int](repeating: 0, count: 7 * 24)
+        var seconds = [Double](repeating: 0, count: 7 * 24)
+        for session in sessions {
+            let weekday = max(0, min(6, calendar.weekday(of: session.startedAt) - 1))
+            let net = session.netWordChange ?? 0
+            var totalSeconds = 0.0
+            var perHour = [Double](repeating: 0, count: 24)
+            let ranges = session.activeRanges.isEmpty && session.activeSeconds > 0
+                ? [TimeRange(start: session.startedAt, end: min(session.startedAt.addingTimeInterval(session.activeSeconds), session.endedAt ?? end))]
+                : session.activeRanges
+            for range in ranges {
+                var cursor = max(range.start, start)
+                let clampedEnd = min(range.end, end)
+                while cursor < clampedEnd {
+                    let hourStart = calendar.calendar.dateInterval(of: .hour, for: cursor)?.start ?? cursor
+                    let hourEnd = calendar.calendar.date(byAdding: .hour, value: 1, to: hourStart) ?? clampedEnd
+                    let sliceEnd = min(hourEnd, clampedEnd)
+                    let slice = sliceEnd.timeIntervalSince(cursor)
+                    perHour[calendar.hour(of: cursor)] += slice
+                    totalSeconds += slice
+                    cursor = sliceEnd
+                }
+            }
+            for hour in 0..<24 where perHour[hour] > 0 {
+                seconds[weekday * 24 + hour] += perHour[hour]
+                if totalSeconds > 0 {
+                    words[weekday * 24 + hour] += Int((Double(net) * perHour[hour] / totalSeconds).rounded())
+                }
+            }
+            if totalSeconds == 0 {
+                words[weekday * 24 + calendar.hour(of: session.startedAt)] += net
+            }
+        }
+        var cells: [HourWeekdayCell] = []
+        for weekday in 1...7 {
+            for hour in 0..<24 {
+                let index = (weekday - 1) * 24 + hour
+                cells.append(HourWeekdayCell(weekday: weekday, hour: hour, words: words[index], activeSeconds: seconds[index]))
+            }
+        }
+        return cells
+    }
+
+    public func sessionTypeBreakdown(from start: Date, to end: Date) -> [SessionTypeDay] {
+        let sessions = (try? sessionRepository.sessions(in: DateInterval(start: start, end: end))) ?? []
+        var buckets: [String: (date: Date, type: SessionType, words: Int, seconds: Double)] = [:]
+        for session in sessions {
+            let day = calendar.startOfDay(for: session.startedAt)
+            let key = "\(calendar.dayKey(for: day))-\(session.sessionType.rawValue)"
+            var entry = buckets[key] ?? (day, session.sessionType, 0, 0)
+            entry.words += session.netWordChange ?? 0
+            entry.seconds += session.activeSeconds
+            buckets[key] = entry
+        }
+        return buckets.values
+            .map { SessionTypeDay(dayKey: calendar.dayKey(for: $0.date), date: $0.date, type: $0.type, words: $0.words, activeSeconds: $0.seconds) }
+            .sorted { $0.date < $1.date }
+    }
+
+    public func dailyWordsByProject(from start: Date, to end: Date) -> [ProjectDayWords] {
+        let sessions = (try? sessionRepository.sessions(in: DateInterval(start: start, end: end))) ?? []
+        var buckets: [String: (date: Date, projectID: String?, words: Int)] = [:]
+        for session in sessions {
+            let day = calendar.startOfDay(for: session.startedAt)
+            let key = "\(calendar.dayKey(for: day))-\(session.projectID ?? "none")"
+            var entry = buckets[key] ?? (day, session.projectID, 0)
+            entry.words += session.netWordChange ?? 0
+            buckets[key] = entry
+        }
+        return buckets.values
+            .map { ProjectDayWords(dayKey: calendar.dayKey(for: $0.date), date: $0.date, projectID: $0.projectID, words: $0.words) }
+            .sorted { $0.date < $1.date }
+    }
+
+    public func addedRemovedSeries(from start: Date, to end: Date) -> [AddedRemovedPoint] {
+        let sessions = (try? sessionRepository.sessions(in: DateInterval(start: start, end: end))) ?? []
+        var buckets: [String: (date: Date, added: Int, removed: Int)] = [:]
+        for session in sessions {
+            let day = calendar.startOfDay(for: session.startedAt)
+            let key = calendar.dayKey(for: day)
+            var entry = buckets[key] ?? (day, 0, 0)
+            if session.wordsAdded != nil || session.wordsRemoved != nil {
+                entry.added += session.wordsAdded ?? 0
+                entry.removed += session.wordsRemoved ?? 0
+            } else if let net = session.netWordChange {
+                if net >= 0 { entry.added += net } else { entry.removed += -net }
+            }
+            buckets[key] = entry
+        }
+        return buckets.values
+            .map { AddedRemovedPoint(dayKey: calendar.dayKey(for: $0.date), date: $0.date, added: $0.added, removed: $0.removed) }
+            .sorted { $0.date < $1.date }
+    }
+
+    public func paceHistory(from start: Date, to end: Date) -> [PacePoint] {
+        let sessions = (try? sessionRepository.sessions(in: DateInterval(start: start, end: end))) ?? []
+        let allSnapshots = (try? snapshotRepository.all()) ?? []
+        let byDocument = Dictionary(grouping: allSnapshots.compactMap { snapshot -> (String, WordCountSnapshot)? in
+            guard let id = snapshot.documentID else { return nil }
+            return (id, snapshot)
+        }, by: { $0.0 }).mapValues { $0.map(\.1).sorted { $0.timestamp < $1.timestamp } }
+        return sessions.compactMap { session -> PacePoint? in
+            guard let value = pace(for: session, snapshotsByDocument: byDocument), value > 0 else { return nil }
+            return PacePoint(date: session.startedAt, pace: value)
+        }.sorted { $0.date < $1.date }
+    }
+
+    public func weekdayMomentum(reference: Date) -> [WeekdayMomentum] {
+        let thisStart = calendar.startOfWeek(for: reference)
+        let lastStart = calendar.addingDays(-7, to: thisStart)
+        func totals(_ start: Date) -> [Int] {
+            (0..<7).map { offset in dailyStatistics(date: calendar.addingDays(offset, to: start)).netWords }
+        }
+        let this = totals(thisStart), last = totals(lastStart)
+        return (0..<7).map { WeekdayMomentum(weekday: $0, thisWeek: this[$0], lastWeek: last[$0]) }
+    }
+
+    public func streakHistory() -> [StreakRun] {
+        let threshold = settings.streakThresholdWords
+        let aggregates = (try? aggregateRepository.all()) ?? []
+        let byKey = Dictionary(uniqueKeysWithValues: aggregates.map { ($0.dayKey, $0) })
+        let scheduled = settings.writingSchedule.filter(\.enabled).map(\.weekday)
+        guard let firstDate = aggregates.map(\.date).min() else { return [] }
+        let today = calendar.startOfDay(for: dateProvider.now)
+        var runs: [StreakRun] = []
+        var runStart: Date?
+        var runEnd: Date?
+        var length = 0
+        for day in calendar.days(from: firstDate, through: today) {
+            let weekday = calendar.weekday(of: day)
+            if !scheduled.isEmpty && !scheduled.contains(weekday) { continue }
+            let aggregate = byKey[calendar.dayKey(for: day)]
+            let writes = aggregate.map { isWritingDay($0, threshold: threshold) } ?? false
+            if writes {
+                if runStart == nil { runStart = day }
+                runEnd = day
+                length += 1
+            } else if calendar.startOfDay(for: day) == today {
+                continue
+            } else if let start = runStart, let end = runEnd {
+                runs.append(StreakRun(start: start, end: end, length: length, isCurrent: false))
+                runStart = nil; runEnd = nil; length = 0
+            }
+        }
+        if let start = runStart, let end = runEnd {
+            runs.append(StreakRun(start: start, end: end, length: length, isCurrent: true))
+        }
+        return runs
+    }
+
+    public func monthlyYearMatrix() -> [MonthlyYearCell] {
+        let aggregates = (try? aggregateRepository.all()) ?? []
+        var buckets: [String: (year: Int, month: Int, words: Int)] = [:]
+        for aggregate in aggregates {
+            let comps = calendar.calendar.dateComponents([.year, .month], from: aggregate.date)
+            let year = comps.year ?? 0, month = comps.month ?? 0
+            let key = "\(year)-\(month)"
+            var entry = buckets[key] ?? (year, month, 0)
+            entry.words += aggregate.netWords
+            buckets[key] = entry
+        }
+        return buckets.values
+            .map { MonthlyYearCell(year: $0.year, month: $0.month, words: $0.words) }
+            .sorted { ($0.year, $0.month) < ($1.year, $1.month) }
+    }
+
+    public func careerOutputByYearType() -> [YearTypeWords] {
+        let projects = (try? projectRepository.all()) ?? []
+        var typeByProject: [String: ProjectType] = [:]
+        for project in projects { typeByProject[project.id] = project.type }
+        let sessions = (try? sessionRepository.completed()) ?? []
+        var buckets: [String: Int] = [:]
+        for session in sessions {
+            let year = calendar.yearKey(for: session.startedAt)
+            let type = session.projectID.flatMap { typeByProject[$0] } ?? .other
+            buckets["\(year)-\(type.rawValue)", default: 0] += session.netWordChange ?? 0
+        }
+        return buckets.map { key, words in
+            let parts = key.split(separator: "-")
+            let year = String(parts.first ?? "")
+            let type = ProjectType(rawValue: String(parts.dropFirst().joined(separator: "-"))) ?? .other
+            return YearTypeWords(year: year, type: type, words: words)
+        }.sorted { $0.year < $1.year }
+    }
+
+    public func cumulativeProjectSeries(projectID: String) -> [CumulativePoint] {
+        guard let project = try? projectRepository.find(id: projectID) else { return [] }
+        let sessions = ((try? sessionRepository.sessions(forProject: projectID)) ?? [])
+            .filter { $0.endedAt != nil }
+            .sorted { $0.startedAt < $1.startedAt }
+        var running = project.startingWordCount
+        var points = [CumulativePoint(date: project.createdAt, words: running)]
+        for session in sessions {
+            if let ending = session.endingWordCount {
+                running = ending
+            } else {
+                running += session.netWordChange ?? 0
+            }
+            points.append(CumulativePoint(date: session.endedAt ?? session.startedAt, words: running))
+        }
+        return points
+    }
+
+    public func documentWordCountSeries(projectID: String) -> [DocumentWordSeries] {
+        let snapshots = ((try? snapshotRepository.snapshots(forProject: projectID)) ?? [])
+            .filter { $0.documentID != nil }
+            .sorted { $0.timestamp < $1.timestamp }
+        let grouped = Dictionary(grouping: snapshots, by: { $0.documentID! })
+        let documents = (try? DocumentRepository(database: database).documents(forProject: projectID)) ?? []
+        let names = Dictionary(uniqueKeysWithValues: documents.map { ($0.id, $0.displayName) })
+        return grouped.map { documentID, snaps in
+            DocumentWordSeries(
+                documentID: documentID,
+                displayName: names[documentID] ?? "Document",
+                points: snaps.map { CumulativePoint(date: $0.timestamp, words: $0.wordCount) }
+            )
+        }.sorted { $0.displayName < $1.displayName }
+    }
+
+    public func deadlinePaceSeries(projectID: String) -> [CumulativePoint] {
+        guard let project = try? projectRepository.find(id: projectID),
+              let target = project.targetWordCount,
+              let deadline = project.deadline else { return [] }
+        let start = project.startedAt ?? project.createdAt
+        guard deadline > start else { return [] }
+        return [
+            CumulativePoint(date: start, words: project.startingWordCount),
+            CumulativePoint(date: deadline, words: target)
+        ]
+    }
+
+    /// Simple moving average; positions with fewer than `window` samples are nil.
+    public static func movingAverage(_ values: [Double], window: Int) -> [Double?] {
+        guard window > 0 else { return values.map { $0 } }
+        var result: [Double?] = []
+        var sum = 0.0
+        for index in values.indices {
+            sum += values[index]
+            if index >= window { sum -= values[index - window] }
+            result.append(index >= window - 1 ? sum / Double(window) : nil)
+        }
+        return result
     }
 }
