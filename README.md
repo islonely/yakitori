@@ -113,6 +113,20 @@ Yakitori is a menu bar utility (`LSUIElement`), so it has no Dock icon until the
 dashboard is open. Click the flame icon in the menu bar to open the popover, then
 **Dashboard**.
 
+### App icon
+
+The bundle icon is generated programmatically:
+
+```bash
+./Scripts/make-icon.sh        # writes Packaging/Yakitori.icns
+./Scripts/build-app.sh release
+```
+
+To use your own artwork, replace `Packaging/Yakitori.icns` with an `.icns` built
+from a 1024x1024 PNG (macOS app icons are rounded squares with a margin; the
+system does not round them for you). `CFBundleIconFile` in `Packaging/Info.plist`
+names the resource.
+
 The database lives at:
 
 ```

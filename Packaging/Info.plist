@@ -6,6 +6,8 @@
     <string>en</string>
     <key>CFBundleExecutable</key>
     <string>WritingTracker</string>
+    <key>CFBundleIconFile</key>
+    <string>Yakitori</string>
     <key>CFBundleIdentifier</key>
     <string>com.yakitori.app</string>
     <key>CFBundleInfoDictionaryVersion</key>

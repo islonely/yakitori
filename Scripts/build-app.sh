@@ -25,6 +25,13 @@ mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 cp "$BIN_DIR/WritingTracker" "$APP/Contents/MacOS/WritingTracker"
 cp "$ROOT/Packaging/Info.plist" "$APP/Contents/Info.plist"
 
+# App icon (generate with Scripts/make-icon.sh if missing).
+if [ -f "$ROOT/Packaging/Yakitori.icns" ]; then
+    cp "$ROOT/Packaging/Yakitori.icns" "$APP/Contents/Resources/Yakitori.icns"
+else
+    echo "Note: Packaging/Yakitori.icns not found; run Scripts/make-icon.sh to generate it."
+fi
+
 # Copy SwiftPM resource bundles (localization, etc.)
 shopt -s nullglob
 for bundle in "$BIN_DIR"/*.bundle; do

@@ -23,6 +23,7 @@ dist/
 *.dSYM
 *.ipa
 *.dmg
+*.iconset/
 
 # Databases (local runtime data should never be committed)
 *.sqlite
