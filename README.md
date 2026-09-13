@@ -60,8 +60,10 @@ Any other application can still be added and tracked for time and focus.
 
 - **Menu bar utility** that keeps tracking while the dashboard window is closed.
 - **Background tracking engine** independent of the SwiftUI layer.
-- **Only real writing is recorded**: sessions that add (or remove) no words are
-  discarded, so idle time in a writing app never inflates your history.
+- **Only real writing is recorded**: for apps with a word count (Word and Pages),
+  a session where the word count does not change is discarded, so idle time never
+  inflates your history. Apps without a word count (for example Scrivener,
+  Obsidian, or a browser) are still tracked by active and focus time.
 - **Configurable global hotkey** to start/stop a session from anywhere (Settings →
   Tracking).
 - **Session state machine** (`IDLE → FOCUSED → ACTIVE → PAUSED → ACTIVE → ENDED`)
