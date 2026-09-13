@@ -1154,6 +1154,32 @@ Categories:
 - Missed days
 - Average days/week
 
+## Implemented chart set
+
+- Daily words with 7-day and 30-day moving-average overlays
+- Daily active time (area)
+- Weekly and monthly totals
+- Focus vs active time (stacked bars; the gap is reading/thinking time)
+- Added vs removed words (diverging bars, labelled estimated)
+- Day-of-week x hour heatmap (7x24)
+- Radial 24-hour "writing clock"
+- Session efficiency scatter (active minutes vs net words, coloured by type)
+- Typing pace over time and typing pace distribution
+- Session-type breakdown over time (stacked)
+- Project mix over time (stacked area)
+- Writing streak history (one bar per streak)
+- Personal records (best day, session, pace, week, longest streak)
+- Output by month (months x years grid)
+- Career output by year and project type
+
+## Typing pace
+
+Typing pace (WPM) is **derived** from growth in the document's character count
+(5 characters = 1 word) per active minute, not from keystrokes. Deletions and
+modifier keys contribute nothing, so backspace and shift never inflate it.
+Pasted text counts. It is available only for applications that expose a
+character count (Word and Pages) and is always labelled estimated.
+
 ---
 
 # 32. Lifetime Statistics
@@ -1247,6 +1273,11 @@ Intensity should correspond to:
 Allow switching between these metrics.
 
 Clicking a day opens detailed statistics.
+
+Additional calendar views:
+
+- A daily bar chart for the selected day's month.
+- Year in pixels: a compact month x day grid covering the last year.
 
 ---
 
@@ -1382,6 +1413,14 @@ Positive/negative chart.
 ### Sessions
 
 Timeline.
+
+### Implemented project charts
+
+- Cumulative progress with a pace projection cone (7-day, 30-day, lifetime)
+- Burn-down of remaining words against the straight required-pace line
+- Word-count history per document
+- Milestone timeline (started, milestones hit, completed, projected completion)
+- Daily output bars
 
 ---
 
@@ -2562,24 +2601,21 @@ Avoid making the UI look like a novelty application.
 
 Use native macOS charting technology where appropriate, likely Swift Charts.
 
-Required chart types:
+Implemented chart types:
 
-- Bar
-- Line
-- Area
-- Donut/pie where genuinely useful
-- Heatmap
-- Timeline
-- Progress ring
-- Stacked bar
+- Bar, line, area and stacked bar
+- Scatter (point) and diverging bar (added vs removed)
+- Heatmap (calendar, 7x24 day/hour, months x years, year in pixels)
+- Radial 24-hour "writing clock"
+- Progress rings and goal gauges
+- Projection cone and burn-down
+- Milestone timeline
 
-Charts should support:
+Charts support:
 
-- hover
-- click
-- date ranges
-- tooltips
-- drill-down
+- date ranges (statistics and dashboard ranges)
+- click / drill-down (calendar day detail)
+- annotations and tooltips where useful
 
 ---
 

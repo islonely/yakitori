@@ -1070,6 +1070,16 @@ not:
 Words written
 ```
 
+### Typing pace (WPM)
+
+Typing pace is **derived**, not measured from keystrokes. It is computed from
+growth in the document's character count (5 characters = 1 word) divided by
+active minutes. Deletions and modifier keys add nothing (backspace lowers the
+count, shift does not change it), so they never inflate the pace. Pasted text is
+indistinguishable from typing and therefore counts. Pace is only available for
+applications that report a character count (Word and Pages) and is always labelled
+as estimated. Per-keystroke counting is not used.
+
 ---
 
 # 18. Document and Project Association
@@ -1412,10 +1422,14 @@ Primary cards:
 
 Secondary:
 
-- Today's timeline.
+- Today's timeline (hourly bars).
 - Recent sessions.
-- Weekly trend.
+- Weekly trend (daily bars with 7-day and 30-day moving averages).
+- This week vs last week momentum by weekday.
+- Goal progress gauges.
 - Project progress.
+
+The menu bar popover shows a compact hourly sparkline for today.
 
 ---
 
@@ -1439,24 +1453,59 @@ Show:
 - Recent activity.
 - Milestones.
 - Trend chart.
+- Projection cone (7-day, 30-day and lifetime pace lines to the target).
+- Burn-down of remaining words against the straight required-pace line.
+- Word-count history per document.
+- Milestone timeline.
 
 ---
 
 # 30. Statistics
 
-Use Swift Charts where appropriate.
+Use Swift Charts where appropriate. The implemented chart set:
 
-Charts:
+Output and time:
 
-- Daily words.
-- Daily active time.
+- Daily words with 7-day and 30-day moving-average overlays.
+- Daily active time (area).
 - Weekly totals.
 - Monthly totals.
-- Project progress.
+- Focus vs active time (stacked bars; the gap is reading/thinking time).
+- Added vs removed words (diverging bars, labelled estimated).
+- Output by month (months-by-years grid).
+
+Patterns:
+
 - Time-of-day activity.
 - Day-of-week activity.
+- Day-of-week x hour heatmap (7x24).
+- Radial 24-hour "writing clock".
 - Session duration distribution.
-- Writing streak history.
+- Session-type breakdown over time (stacked).
+- Project mix over time (stacked area).
+
+Sessions and pace:
+
+- Session efficiency scatter (active minutes vs net words, coloured by type).
+- Typing pace over time.
+- Typing pace distribution.
+
+Consistency and records:
+
+- Writing streak history (one bar per streak).
+- Personal records (best day, session, pace, week, longest streak).
+- Lifetime totals.
+
+Project and career:
+
+- Project progress.
+- Cumulative project progress with pace projections.
+- Burn-down.
+- Per-document word-count history.
+- Milestone timeline.
+- Project comparison.
+- Career output by year and project type.
+- Year in pixels.
 
 Avoid decorative charts with no useful information.
 
@@ -1475,6 +1524,11 @@ Sessions
 ```
 
 Clicking a day opens daily detail.
+
+Additional views:
+
+- A daily bar chart for the selected day's month.
+- Year in pixels (a compact month x day grid for the last year).
 
 Daily detail:
 
