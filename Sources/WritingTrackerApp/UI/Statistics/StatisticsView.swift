@@ -15,6 +15,8 @@ struct StatisticsView: View {
             VStack(alignment: .leading, spacing: 22) {
                 BrandHeader(title: "Statistics", subtitle: "Your writing output and patterns", symbol: "chart.bar.xaxis")
                 summaryGrid
+                recordsSection
+                lifetimeSection
                 rollingAverageChart
                 HStack(alignment: .top, spacing: 16) {
                     activeTimeChart
@@ -35,8 +37,6 @@ struct StatisticsView: View {
                     streakLadderCard
                     addedRemovedCard
                 }
-                recordsSection
-                lifetimeSection
             }
             .padding(24)
         }
