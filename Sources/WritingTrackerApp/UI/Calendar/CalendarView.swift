@@ -39,6 +39,8 @@ struct CalendarView: View {
     @State private var metric: HeatmapMetric = .words
     @State private var selectedDay: DailyStatistics?
 
+    private static let heatmapEndID = "heatmap-end"
+
     private var statistics: StatisticsService { state.container.statistics }
     private var calendar: CalendarContext { statistics.calendar }
 
@@ -55,15 +57,16 @@ struct CalendarView: View {
                     .pickerStyle(.segmented)
                     .frame(width: 320)
                 }
-                heatmap(weeks)
-                legend
-                monthBarsCard
-                if let selectedDay {
-                    dailyDetail(selectedDay)
-                } else {
-                    Text("Click a day to see its details.")
-                        .foregroundStyle(.secondary)
+                HStack(alignment: .top, spacing: 20) {
+                    VStack(alignment: .leading, spacing: 12) {
+                        heatmap(weeks)
+                        legend
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    detailPanel
+                        .frame(width: 340)
                 }
+                monthBarsCard
             }
             .padding(24)
         }
@@ -97,27 +100,36 @@ struct CalendarView: View {
     }
 
     private func heatmap(_ weeks: [[HeatmapCell]]) -> some View {
-        ScrollView(.horizontal, showsIndicators: true) {
-            HStack(alignment: .top, spacing: 3) {
-                VStack(alignment: .trailing, spacing: 3) {
-                    ForEach(0..<7, id: \.self) { index in
-                        Text(weekdayLabel(index))
-                            .font(.system(size: 9))
-                            .foregroundStyle(.secondary)
-                            .frame(height: 13, alignment: .center)
-                            .frame(width: 24, alignment: .trailing)
+        ScrollViewReader { proxy in
+            ScrollView(.horizontal, showsIndicators: true) {
+                HStack(alignment: .top, spacing: 3) {
+                    VStack(alignment: .trailing, spacing: 3) {
+                        ForEach(0..<7, id: \.self) { index in
+                            Text(weekdayLabel(index))
+                                .font(.system(size: 9))
+                                .foregroundStyle(.secondary)
+                                .frame(height: 13, alignment: .center)
+                                .frame(width: 24, alignment: .trailing)
+                        }
+                        Spacer(minLength: 0)
                     }
-                    Spacer(minLength: 0)
-                }
-                ForEach(Array(weeks.enumerated()), id: \.offset) { _, week in
-                    VStack(spacing: 3) {
-                        ForEach(week) { cell in
-                            cellView(cell)
+                    ForEach(Array(weeks.enumerated()), id: \.offset) { _, week in
+                        VStack(spacing: 3) {
+                            ForEach(week) { cell in
+                                cellView(cell)
+                            }
                         }
                     }
+                    // Scroll anchor so the most recent days are visible by default.
+                    Color.clear.frame(width: 1, height: 1).id(Self.heatmapEndID)
+                }
+                .padding(.vertical, 4)
+            }
+            .onAppear {
+                DispatchQueue.main.async {
+                    proxy.scrollTo(Self.heatmapEndID, anchor: .trailing)
                 }
             }
-            .padding(.vertical, 4)
         }
         .cardStyle()
     }
@@ -170,6 +182,21 @@ struct CalendarView: View {
         .cardStyle()
     }
 
+    @ViewBuilder
+    private var detailPanel: some View {
+        if let selectedDay {
+            dailyDetail(selectedDay)
+        } else {
+            VStack(alignment: .leading, spacing: 10) {
+                SectionHeader(title: "Daily detail", subtitle: "Select a day")
+                Text("Click a day on the heatmap to see its details.")
+                    .foregroundStyle(.secondary)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .cardStyle()
+        }
+    }
+
     private func dailyDetail(_ stat: DailyStatistics) -> some View {
         let sessions = (try? state.container.sessions.sessions(filter: SessionFilter(
             startDate: calendar.startOfDay(for: stat.date),
@@ -179,7 +206,7 @@ struct CalendarView: View {
         let names = Dictionary(uniqueKeysWithValues: projects.map { ($0.id, $0.title) })
         return VStack(alignment: .leading, spacing: 14) {
             SectionHeader(title: Format.day.string(from: stat.date), subtitle: "Daily detail")
-            LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible()), GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
+            LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
                 MetricTile(title: "Words", value: Format.int(stat.netWords))
                 MetricTile(title: "Active", value: Format.duration(stat.activeSeconds))
                 MetricTile(title: "Focus", value: Format.duration(stat.focusSeconds))
