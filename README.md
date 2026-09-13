@@ -14,6 +14,18 @@ Repository: https://github.com/islonely/yakitori
 
 ---
 
+## Screenshots
+
+Dashboard and statistics:
+
+<img src="screenshot_dashboard.png" alt="Yakitori dashboard and statistics" width="900">
+
+Menu bar quick menu:
+
+<img src="screenshot_quick_menu.png" alt="Yakitori menu bar quick menu" width="320">
+
+---
+
 ## Application support
 
 Only **Microsoft Word** and **Apple Pages** can provide an exact word count,
