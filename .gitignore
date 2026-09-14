@@ -32,6 +32,16 @@ dist/
 *.sqlite-shm
 *.db
 
+# Python / Django (website/)
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+staticfiles/
+website/media/
+.pytest_cache/
+.mypy_cache/
+
 # Logs
 *.log
 
