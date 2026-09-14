@@ -7,6 +7,7 @@
         <a href="{% url 'profiles:edit' %}" class="{% if request.resolver_match.url_name == 'edit' %}active{% endif %}">Profile</a>
         <a href="{% url 'profiles:change-username' %}" class="{% if request.resolver_match.url_name == 'change-username' %}active{% endif %}">Username</a>
         <a href="{% url 'profiles:privacy' %}" class="{% if request.resolver_match.url_name == 'privacy' %}active{% endif %}">Privacy</a>
+        <a href="{% url 'licensing:license' %}" class="{% if request.resolver_match.url_name == 'license' %}active{% endif %}">License</a>
     </aside>
 
     <div class="account-main">

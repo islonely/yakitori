@@ -1,0 +1,67 @@
+{% extends "dashboard/base.html" %}
+
+{% block title %}License — {{ platform_name }}{% endblock %}
+
+{% block account_content %}
+<h1>License</h1>
+
+{% if license %}
+    <div class="card">
+        <table>
+            <tr><th>Product</th><td>{{ license.product }}</td></tr>
+            <tr><th>Type</th><td>{{ license.get_license_type_display }}</td></tr>
+            <tr>
+                <th>Status</th>
+                <td><span class="badge badge-{{ license.status }}">{{ license.get_status_display }}</span></td>
+            </tr>
+            <tr><th>Purchased</th><td>{{ license.purchased_at|date:"j M Y"|default:"—" }}</td></tr>
+            <tr><th>Expires</th><td>Never — this is a lifetime license</td></tr>
+        </table>
+        {% if license.revocation_reason %}
+            <p class="fine-print">Reason: {{ license.revocation_reason }}</p>
+        {% endif %}
+    </div>
+{% else %}
+    <div class="card">
+        <h2>No license yet</h2>
+        <p>A one-time purchase attaches a lifetime license to this account.</p>
+        <a class="button" href="{% url 'commerce:buy' %}">Buy {{ product_name }}</a>
+    </div>
+{% endif %}
+
+<div class="card">
+    <h2>Installations</h2>
+    <p class="fine-print">
+        Unlimited Macs, no device limit. Installations are listed for support and
+        security, not to restrict you.
+    </p>
+    {% if installations %}
+        <table>
+            <thead>
+                <tr><th>Installation</th><th>Version</th><th>Last seen</th><th></th></tr>
+            </thead>
+            <tbody>
+                {% for installation in installations %}
+                    <tr>
+                        <td>{{ installation.installation_id }}</td>
+                        <td>{{ installation.app_version|default:"—" }}</td>
+                        <td>{{ installation.last_seen_at|date:"j M Y H:i" }}</td>
+                        <td>
+                            {% if installation.is_active %}
+                                <form method="post" action="{% url 'licensing:revoke-installation' installation.installation_id %}">
+                                    {% csrf_token %}
+                                    <button type="submit" class="link-button">Revoke</button>
+                                </form>
+                            {% else %}
+                                <span class="badge badge-revoked">Revoked</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% else %}
+        <p>No installations have registered yet.</p>
+    {% endif %}
+</div>
+{% endblock %}
