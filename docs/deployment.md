@@ -205,7 +205,15 @@ Two intentional behaviours can look like this:
    your inbox. Configure a provider as above.
 2. **Rate limiting.** Sign-up/sign-in requests are limited per IP and per
    address. When the limit is hit the form now shows "Too many attempts" rather
-   than pretending an email was sent. Wait a few minutes and retry.
+   than pretending an email was sent. A successful sign-in clears the counters
+   for that address and IP. To clear them immediately (development or to unblock
+   an IP):
+
+   ```bash
+   python manage.py clear_rate_limits                 # everything
+   python manage.py clear_rate_limits --action login-verify
+   python manage.py clear_rate_limits --contains 127.0.0.1
+   ```
 
 ## 10. Backups
 

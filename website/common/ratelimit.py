@@ -62,3 +62,27 @@ def enforce(request, action, scope=None, cost=1):
             "rate_limited",
             "Too many requests. Please wait and try again.",
         )
+
+
+def retry_after(action, scope):
+    """Seconds until the counter for this action/scope resets, or 0."""
+    key = f"{action}:{scope}"
+    entry = RateLimitEntry.objects.filter(key=key).first()
+    if entry is None:
+        return 0
+    return max(0, int((entry.reset_at - timezone.now()).total_seconds()))
+
+
+def reset(action=None, scope=None):
+    """Clear counters. With no arguments, clear everything.
+
+    Used when a sign-in succeeds (so a legitimate user is not locked out by
+    their own earlier typos) and by the `clear_rate_limits` management command.
+    """
+    queryset = RateLimitEntry.objects.all()
+    if action is not None:
+        queryset = queryset.filter(key__startswith=f"{action}:")
+    if scope is not None:
+        queryset = queryset.filter(key__endswith=f":{scope}")
+    deleted, _ = queryset.delete()
+    return deleted

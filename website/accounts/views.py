@@ -5,7 +5,7 @@ from django.shortcuts import redirect, render
 from django.urls import reverse
 from django.views.decorators.http import require_http_methods
 
-from common.ratelimit import check, client_ip
+from common.ratelimit import check, client_ip, reset, retry_after
 from common.text import normalize_email
 
 from . import services
@@ -14,6 +14,30 @@ from . import services
 def _next_url(request, default="dashboard:home"):
     target = request.POST.get("next") or request.GET.get("next")
     return target if target else reverse(default)
+
+
+def _too_many_message(action, *scopes):
+    remaining = max((retry_after(action, scope) for scope in scopes), default=0)
+    if remaining <= 0:
+        return "Too many attempts. Please wait a few minutes and try again."
+    minutes = max(1, (remaining + 59) // 60)
+    unit = "minute" if minutes == 1 else "minutes"
+    return f"Too many attempts. Try again in about {minutes} {unit}."
+
+
+def _clear_login_limits(request, email=None):
+    """Clear login counters after a successful sign-in.
+
+    A legitimate user should not stay locked out because of their own earlier
+    typos once they have actually authenticated.
+    """
+    ip_scope = f"ip:{client_ip(request)}"
+    reset("login-request", ip_scope)
+    reset("login-verify", ip_scope)
+    if email:
+        email_scope = f"email:{normalize_email(email)}"
+        reset("login-request", email_scope)
+        reset("login-verify", email_scope)
 
 
 @require_http_methods(["GET", "POST"])
@@ -40,8 +64,10 @@ def sign_in(request):
             if allowed:
                 services.request_login(email, request_ip=client_ip(request))
                 return redirect("accounts:sign-in-sent")
-            error = (
-                "Too many attempts. Please wait a few minutes and try again."
+            error = _too_many_message(
+                "login-request",
+                f"ip:{client_ip(request)}",
+                f"email:{normalize_email(email)}",
             )
 
     return render(request, "accounts/sign_in.html", {"error": error})
@@ -71,8 +97,10 @@ def sign_up(request):
             if allowed:
                 services.request_login(email, request_ip=client_ip(request))
                 return redirect("accounts:sign-up-sent")
-            error = (
-                "Too many attempts. Please wait a few minutes and try again."
+            error = _too_many_message(
+                "login-request",
+                f"ip:{client_ip(request)}",
+                f"email:{normalize_email(email)}",
             )
 
     return render(request, "accounts/sign_up.html", {"error": error})
@@ -91,6 +119,7 @@ def verify_token(request, token):
     user, error = services.verify_token(token)
     if user is not None:
         login(request, user)
+        _clear_login_limits(request, email=user.email)
         messages.success(request, "You are signed in.")
         return redirect(_next_url(request))
 
@@ -112,15 +141,18 @@ def sign_in_code(request):
 
     if request.method == "POST":
         code = request.POST.get("code", "").strip()
-        allowed = check(
-            request, "login-verify", scope=f"ip:{client_ip(request)}"
+        ip_scope = f"ip:{client_ip(request)}"
+        email_scope = f"email:{normalize_email(email)}"
+        allowed = check(request, "login-verify", scope=ip_scope) and check(
+            request, "login-verify", scope=email_scope
         )
         if not allowed:
-            error = "Too many attempts. Please wait and try again."
+            error = _too_many_message("login-verify", ip_scope, email_scope)
         else:
             user, reason = services.verify_code(email, code)
             if user is not None:
                 login(request, user)
+                _clear_login_limits(request, email=email)
                 messages.success(request, "You are signed in.")
                 return redirect(_next_url(request))
             error = (

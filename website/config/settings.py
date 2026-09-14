@@ -296,8 +296,10 @@ LEADERBOARD_PAGE_SIZE = _env_int("LEADERBOARD_PAGE_SIZE", 100)
 
 # Rate limiting defaults, expressed as (limit, window_seconds).
 RATE_LIMIT_DEFAULTS = {
-    "login-request": (_env_int("RL_LOGIN_REQUEST", 8), 15 * 60),
-    "login-verify": (_env_int("RL_LOGIN_VERIFY", 12), 15 * 60),
+    # Per-IP caps are generous because many users can share one address (NAT,
+    # an office, a phone hotspot, or a single development machine).
+    "login-request": (_env_int("RL_LOGIN_REQUEST", 20), 15 * 60),
+    "login-verify": (_env_int("RL_LOGIN_VERIFY", 30), 15 * 60),
     # Device authorization polling is frequent by design (one request per
     # interval), so it is capped per device code over the code's lifetime.
     "device-poll": (_env_int("RL_DEVICE_POLL", 600), 15 * 60),
