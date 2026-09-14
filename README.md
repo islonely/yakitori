@@ -7,7 +7,12 @@ statistics, and presents analytics — **without ever recording the words you ty
 > Track the writer, not the writing.
 
 This repository implements the product described in
-[`DESIGN_DOCUMENT.md`](DESIGN_DOCUMENT.md).
+[`docs/DESIGN_DOCUMENT.md`](docs/DESIGN_DOCUMENT.md).
+
+It also contains the commercial platform (accounts, commerce, licensing, social,
+and leaderboards) under [`website/`](website/). The platform is additive: the
+macOS app remains local-first and never requires the network to track writing.
+See [`docs/`](docs/) for the platform architecture and operations documentation.
 
 Repository: https://github.com/islonely/yakitori
 

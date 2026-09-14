@@ -1,0 +1,44 @@
+# Yakitori platform — Gunicorn systemd unit
+# Place at: /etc/systemd/system/yakitori.service
+# Enable + start:  sudo systemctl daemon-reload
+#                  sudo systemctl enable --now yakitori
+#
+# Reads environment/secrets from /srv/yakitori/website/.env (chmod 600, owned by
+# the service user). nginx (port 443) talks to the unix socket below.
+
+[Unit]
+Description=Yakitori platform (Gunicorn)
+After=network.target postgresql.service
+Wants=postgresql.service
+
+[Service]
+Type=notify
+User=yakitori
+Group=yakitori
+RuntimeDirectory=yakitori
+WorkingDirectory=/srv/yakitori/website
+EnvironmentFile=/srv/yakitori/website/.env
+
+ExecStart=/srv/yakitori/website/.venv/bin/gunicorn config.wsgi:application \
+    --bind unix:/run/yakitori.sock \
+    --workers 3 \
+    --threads 2 \
+    --worker-class gthread \
+    --max-requests 2000 \
+    --max-requests-jitter 200 \
+    --timeout 60 \
+    --graceful-timeout 30
+
+Restart=always
+RestartSec=3
+
+MemoryHigh=1024M
+MemoryMax=1536M
+
+PrivateTmp=true
+NoNewPrivileges=true
+ProtectSystem=full
+ProtectHome=true
+
+[Install]
+WantedBy=multi-user.target
