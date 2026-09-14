@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+
+{% block title %}{{ profile.username }} — {{ platform_name }}{% endblock %}
+
+{% block content %}
+<section class="wrap page">
+    <div class="profile-header">
+        {% if profile.avatar_url %}
+            <img class="avatar" src="{{ profile.avatar_url }}" alt="">
+        {% else %}
+            <div class="avatar avatar-placeholder">{{ profile.display_name|default:profile.username|first|upper }}</div>
+        {% endif %}
+        <div>
+            <h1>{{ profile.display_name|default:profile.username }}</h1>
+            <p class="handle">@{{ profile.username }}</p>
+        </div>
+    </div>
+
+    {% if profile.bio %}<p class="lede">{{ profile.bio }}</p>{% endif %}
+
+    {% if is_owner %}
+        <p><a class="button button-small" href="{% url 'profiles:edit' %}">Edit profile</a></p>
+    {% endif %}
+
+    {% if profile.profile_visibility == "private" %}
+        <div class="note"><p>This profile is private.</p></div>
+    {% endif %}
+</section>
+{% endblock %}

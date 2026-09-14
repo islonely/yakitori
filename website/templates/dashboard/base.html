@@ -4,6 +4,9 @@
 <div class="account-layout wrap">
     <aside class="account-nav" aria-label="Account">
         <a href="{% url 'dashboard:home' %}" class="{% if request.resolver_match.url_name == 'home' %}active{% endif %}">Overview</a>
+        <a href="{% url 'profiles:edit' %}" class="{% if request.resolver_match.url_name == 'edit' %}active{% endif %}">Profile</a>
+        <a href="{% url 'profiles:change-username' %}" class="{% if request.resolver_match.url_name == 'change-username' %}active{% endif %}">Username</a>
+        <a href="{% url 'profiles:privacy' %}" class="{% if request.resolver_match.url_name == 'privacy' %}active{% endif %}">Privacy</a>
     </aside>
 
     <div class="account-main">

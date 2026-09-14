@@ -1,0 +1,31 @@
+{% extends "dashboard/base.html" %}
+
+{% block title %}Username — {{ platform_name }}{% endblock %}
+
+{% block account_content %}
+<h1>Username</h1>
+<p class="lede">Your public handle. It appears on your profile and leaderboards.</p>
+
+{% if error %}<div class="message error">{{ error }}</div>{% endif %}
+
+{% if cooldown_days %}
+    <div class="message">
+        You recently changed your username. You can change it again in
+        about {{ cooldown_days }} day{{ cooldown_days|pluralize }}.
+    </div>
+{% endif %}
+
+<form method="post" action="{% url 'profiles:change-username' %}">
+    {% csrf_token %}
+    <label for="username">Username</label>
+    <input type="text" id="username" name="username" required
+           value="{{ profile.username|default:'' }}"
+           pattern="[a-z0-9](?:[a-z0-9_]*[a-z0-9])?"
+           maxlength="30" autocomplete="off" spellcheck="false">
+    <p class="fine-print">
+        Lowercase letters, numbers, and single underscores. Must start and end
+        with a letter or number.
+    </p>
+    <p><button class="button" type="submit">Save username</button></p>
+</form>
+{% endblock %}

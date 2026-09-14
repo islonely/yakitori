@@ -171,6 +171,21 @@ textarea { min-height: 120px; resize: vertical; }
 .badge-active { border-color: var(--success); color: var(--success); }
 .badge-suspended, .badge-deleted, .badge-pending_deletion { border-color: var(--danger); color: var(--danger); }
 
+.profile-header { display: flex; align-items: center; gap: 18px; }
+.profile-header h1 { margin: 0; }
+.handle { color: var(--muted); margin: 2px 0 0; }
+.avatar { width: 72px; height: 72px; border-radius: 50%; object-fit: cover; }
+.avatar-placeholder {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    color: var(--accent-strong);
+    font-size: 1.8rem;
+    font-weight: 700;
+}
+
 @media (max-width: 720px) {
     .account-layout { grid-template-columns: 1fr; gap: 20px; }
     .account-nav { flex-direction: row; flex-wrap: wrap; }

@@ -1,0 +1,29 @@
+{% extends "dashboard/base.html" %}
+
+{% block title %}Profile — {{ platform_name }}{% endblock %}
+
+{% block account_content %}
+<h1>Profile</h1>
+
+<form method="post" action="{% url 'profiles:edit' %}">
+    {% csrf_token %}
+    <label for="display_name">Display name</label>
+    <input type="text" id="display_name" name="display_name" maxlength="100"
+           value="{{ profile.display_name }}">
+
+    <label for="bio">Bio</label>
+    <textarea id="bio" name="bio" maxlength="500">{{ profile.bio }}</textarea>
+
+    <label for="avatar_url">Avatar URL</label>
+    <input type="url" id="avatar_url" name="avatar_url"
+           value="{{ profile.avatar_url }}" placeholder="https://…">
+
+    <p><button class="button" type="submit">Save profile</button></p>
+</form>
+
+<p class="fine-print">
+    Your email address is never shown on your profile.
+    <a href="{% url 'profiles:change-username' %}">Change username</a> ·
+    <a href="{% url 'profiles:privacy' %}">Privacy settings</a>
+</p>
+{% endblock %}

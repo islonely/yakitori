@@ -1,0 +1,42 @@
+{% extends "dashboard/base.html" %}
+
+{% block title %}Privacy — {{ platform_name }}{% endblock %}
+
+{% block account_content %}
+<h1>Privacy</h1>
+<p class="lede">
+    These are independent choices. A public username does not require public
+    statistics, and you can stay off leaderboards entirely.
+</p>
+
+<form method="post" action="{% url 'profiles:privacy' %}">
+    {% csrf_token %}
+
+    <label for="profile_visibility">Profile visibility</label>
+    <select id="profile_visibility" name="profile_visibility">
+        <option value="public" {% if profile.profile_visibility == "public" %}selected{% endif %}>Public</option>
+        <option value="private" {% if profile.profile_visibility == "private" %}selected{% endif %}>Private</option>
+    </select>
+
+    <label for="stats_visibility">Writing statistics</label>
+    <select id="stats_visibility" name="stats_visibility">
+        <option value="private" {% if profile.stats_visibility == "private" %}selected{% endif %}>Private</option>
+        <option value="followers" {% if profile.stats_visibility == "followers" %}selected{% endif %}>Followers only</option>
+        <option value="public" {% if profile.stats_visibility == "public" %}selected{% endif %}>Public</option>
+    </select>
+
+    <label for="leaderboard_visibility">Leaderboards</label>
+    <select id="leaderboard_visibility" name="leaderboard_visibility">
+        <option value="off" {% if profile.leaderboard_visibility == "off" %}selected{% endif %}>Not on leaderboards</option>
+        <option value="followers" {% if profile.leaderboard_visibility == "followers" %}selected{% endif %}>Followers only</option>
+        <option value="global" {% if profile.leaderboard_visibility == "global" %}selected{% endif %}>Public leaderboards</option>
+    </select>
+
+    <label class="checkbox">
+        <input type="checkbox" name="allow_following" {% if profile.allow_following %}checked{% endif %}>
+        Allow other writers to follow me
+    </label>
+
+    <p><button class="button" type="submit">Save privacy settings</button></p>
+</form>
+{% endblock %}
