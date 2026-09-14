@@ -85,8 +85,38 @@ struct MainWindowView: View {
             .tag(section)
     }
 
-    @ViewBuilder
     private var detail: some View {
+        VStack(spacing: 0) {
+            if state.isSignedIn && !state.licensingState.isUsable {
+                entitlementBanner
+            }
+            sectionContent
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+        }
+    }
+
+    private var entitlementBanner: some View {
+        HStack(spacing: 10) {
+            Image(systemName: "exclamationmark.triangle.fill")
+                .foregroundStyle(Theme.gold)
+            Text(state.entitlementMessage)
+                .font(.callout)
+            Spacer()
+            Button("Open Account") { state.selectedSection = .account }
+                .buttonStyle(.bordered)
+        }
+        .padding(.horizontal, 20)
+        .padding(.vertical, 10)
+        .background(Theme.ember.opacity(0.12))
+        .overlay(alignment: .bottom) {
+            Rectangle()
+                .fill(Theme.ember.opacity(0.22))
+                .frame(height: 1)
+        }
+    }
+
+    @ViewBuilder
+    private var sectionContent: some View {
         switch state.selectedSection {
         case .dashboard: DashboardView()
         case .statistics: StatisticsView()

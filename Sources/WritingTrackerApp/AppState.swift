@@ -29,6 +29,9 @@ final class AppState: ObservableObject {
     @Published var isOnboardingPresented = false
 
     @Published var accountState: AccountState = .signedOut
+    /// True once the stored session has been checked, so the UI can avoid a
+    /// flash of the signed-out gate on launch.
+    @Published var accountLoaded = false
     @Published var licensingState: LicensingState = .signedOut
     @Published var deviceAuthorization: DeviceAuthorization?
     @Published var isDeviceSignInPresented = false
@@ -173,6 +176,7 @@ final class AppState: ObservableObject {
     private func restoreAccountIfPossible() async {
         let restored = await container.account.restoreSession()
         accountState = container.account.state
+        accountLoaded = true
         if restored {
             await container.licensing.refresh()
         } else {
@@ -180,8 +184,14 @@ final class AppState: ObservableObject {
         }
     }
 
+    var isSignedIn: Bool {
+        if case .signedIn = accountState { return true }
+        return false
+    }
+
     private func handleAccountState(_ state: AccountState) {
         accountState = state
+        accountLoaded = true
         switch state {
         case .signedIn:
             Task { await container.licensing.refresh() }

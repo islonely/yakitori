@@ -46,41 +46,12 @@ struct AccountView: View {
                 subtitle: "You'll approve this Mac in your browser. There is no password."
             )
 
-            if state.isDeviceSignInPresented, let authorization = state.deviceAuthorization {
-                deviceFlow(authorization)
-            } else {
-                Text("Yakitori includes a 14-day free trial. Sign in to start it on this Mac — an account is required so a trial can't be restarted. Your writing data stays on this Mac either way.")
-                    .foregroundStyle(.secondary)
-                HStack {
-                    Button("Start free trial") { state.beginDeviceSignIn() }
-                        .buttonStyle(.borderedProminent)
-                }
-                if let error = state.deviceSignInError {
-                    Text(error).font(.callout).foregroundStyle(.red)
-                }
-            }
+            Text("Yakitori includes a 14-day free trial. Sign in to start it on this Mac — an account is required so a trial can't be restarted. Your writing data stays on this Mac either way.")
+                .foregroundStyle(.secondary)
+            SignInFlowView()
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .cardStyle()
-    }
-
-    private func deviceFlow(_ authorization: DeviceAuthorization) -> some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Text("Enter this code in your browser:")
-                .font(.callout)
-            Text(authorization.userCode)
-                .font(.system(size: 30, weight: .bold, design: .monospaced))
-                .textSelection(.enabled)
-            HStack {
-                Button("Open Browser") { state.openDeviceVerificationPage() }
-                Button("Cancel") { state.cancelDeviceSignIn() }
-                ProgressView().controlSize(.small)
-            }
-            .buttonStyle(.bordered)
-            if let error = state.deviceSignInError {
-                Text(error).font(.callout).foregroundStyle(.red)
-            }
-        }
     }
 
     // MARK: - Signed in

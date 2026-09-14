@@ -309,7 +309,26 @@ h2 { font-size: 1.35rem; margin: 0 0 12px; }
     backdrop-filter: var(--glass-blur);
 }
 
-.trial-card { max-width: 460px; }
+/* Trial and lifetime side by side when there is room, stacked otherwise. */
+.tiers {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 20px;
+    align-items: stretch;
+    margin: 34px 0;
+}
+.tiers > .card,
+.tiers > .price-card {
+    max-width: none;
+    margin: 0;
+    height: 100%;
+}
+.tiers > .card { display: flex; flex-direction: column; }
+.tiers > .card .button { align-self: flex-start; margin-top: auto; }
+
+@media (max-width: 760px) {
+    .tiers { grid-template-columns: 1fr; }
+}
 .price-card::after {
     content: "";
     position: absolute;

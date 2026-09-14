@@ -12,6 +12,7 @@
         rather than to a device.
     </p>
 
+    <div class="tiers">
     {% include "web/_trial.html" %}
 
     <div class="price-card">
@@ -29,6 +30,7 @@
             <li>Unlimited Macs under one account</li>
         </ul>
         <a class="button" href="{% url 'commerce:buy' %}">Buy {{ product_name }}</a>
+    </div>
     </div>
 
     <p class="fine-print">

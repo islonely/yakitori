@@ -22,11 +22,19 @@ struct YakitoriApp: App {
         .menuBarExtraStyle(.window)
 
         Window("Yakitori", id: "dashboard") {
-            MainWindowView()
-                .environmentObject(state)
-                .environmentObject(state.tracking)
-                .tint(Theme.accent)
-                .frame(minWidth: 960, minHeight: 640)
+            Group {
+                if !state.accountLoaded {
+                    SessionLoadingView()
+                } else if state.isSignedIn {
+                    MainWindowView()
+                } else {
+                    WelcomeView()
+                }
+            }
+            .environmentObject(state)
+            .environmentObject(state.tracking)
+            .tint(Theme.accent)
+            .frame(minWidth: 960, minHeight: 640)
         }
         .defaultSize(width: 1160, height: 760)
         .commands {

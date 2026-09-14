@@ -143,9 +143,20 @@ unavailable / clock anomaly), and the installation id.
 
 Signing in is required to start the 14-day free trial (see
 `docs/licensing-architecture.md`), because the server must be able to tell
-whether an account has already used it. The app gates only the recording of new
-sessions (`TrackingEngine.setTrackingAllowed`); existing data stays viewable and
-exportable, and no local data is hidden or deleted.
+whether an account has already used it.
+
+Because an account is the entry point, a signed-out user sees a dedicated
+**welcome gate** (`UI/Account/WelcomeView.swift`) instead of the main interface,
+with the device sign-in flow in front of them. Once signed in, the normal app
+appears. The menu bar popover shows the same prompt while signed out. A short
+loading view covers the moment at launch while the stored session is checked, so
+the gate never flashes for a signed-in user.
+
+When signed in but not entitled (for example, the trial has ended), the app
+remains usable read-only with a banner pointing to the Account screen. The app
+gates only the recording of new sessions (`TrackingEngine.setTrackingAllowed`);
+existing data stays viewable and exportable, and no local data is hidden or
+deleted.
 
 ## Threat considerations
 

@@ -30,14 +30,51 @@ struct MenuBarPopover: View {
         VStack(alignment: .leading, spacing: 14) {
             header
             Divider()
-            todaySection
-            Divider()
-            sessionSection
-            Divider()
-            footer
+            if !state.accountLoaded {
+                HStack(spacing: 8) {
+                    ProgressView().controlSize(.small)
+                    Text("Checking your account…").foregroundStyle(.secondary)
+                }
+            } else if !state.isSignedIn {
+                signedOutSection
+            } else {
+                todaySection
+                Divider()
+                sessionSection
+                Divider()
+                footer
+            }
         }
         .padding(16)
         .frame(width: 320)
+    }
+
+    private var signedOutSection: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("Sign in to start tracking")
+                .font(.headline)
+            Text("Yakitori includes a 14-day free trial. An account is required so a trial can be used only once.")
+                .font(.callout)
+                .foregroundStyle(.secondary)
+
+            HStack(spacing: 8) {
+                Button {
+                    openWindow(id: "dashboard")
+                    NSApp.activate(ignoringOtherApps: true)
+                } label: {
+                    Label("Sign in", systemImage: "person.crop.circle")
+                }
+                .buttonStyle(.borderedProminent)
+
+                Button {
+                    NSApplication.shared.terminate(nil)
+                } label: {
+                    Image(systemName: "power")
+                }
+                .buttonStyle(.bordered)
+                .help("Quit Yakitori")
+            }
+        }
     }
 
     private var header: some View {
