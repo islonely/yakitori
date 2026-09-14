@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+
+{% block title %}Privacy Policy — {{ platform_name }}{% endblock %}
+
+{% block content %}
+<section class="wrap page prose">
+    <h1>Privacy Policy</h1>
+    <p class="fine-print">Placeholder policy. Replace before launch with counsel-reviewed text.</p>
+
+    <h2>What we store</h2>
+    <p>
+        An account email address, an optional public profile (username, display
+        name, bio, avatar), privacy settings, purchase and license records, and a
+        list of registered installations (app version and last-seen time).
+    </p>
+
+    <h2>What we never store</h2>
+    <p>
+        Manuscript contents, document text, raw keystrokes, clipboard contents,
+        and private document names are never uploaded. The macOS app keeps your
+        writing data on your Mac.
+    </p>
+
+    <h2>What we share</h2>
+    <p>
+        Payments are processed by Stripe. Only the aggregate statistics you
+        explicitly choose to publish may appear on public profiles or
+        leaderboards.
+    </p>
+
+    <h2>Your choices</h2>
+    <p>
+        You control profile visibility, leaderboard participation, and statistic
+        visibility independently. You may delete your account; legally required
+        transaction records are retained as described in the terms.
+    </p>
+</section>
+{% endblock %}

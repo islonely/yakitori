@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+
+{% block title %}{{ platform_name }} — private writing statistics for your Mac{% endblock %}
+
+{% block content %}
+<section class="hero wrap">
+    <h1>Know exactly how much you write.</h1>
+    <p class="lede">
+        {{ platform_name }} is a local-first macOS writing tracker. It counts exact
+        words in Microsoft Word and Apple Pages and time everywhere else — without
+        ever reading your manuscript.
+    </p>
+    <p class="cta-row">
+        <a class="button" href="{% url 'web:pricing' %}">Buy once, own forever</a>
+        <a class="button button-ghost" href="{% url 'web:download' %}">Download for Mac</a>
+    </p>
+</section>
+
+<section class="features wrap">
+    <div class="feature">
+        <h2>Exact, not estimated</h2>
+        <p>Real word counts from Word and Pages. No keystroke guessing, no fake precision.</p>
+    </div>
+    <div class="feature">
+        <h2>Private by design</h2>
+        <p>Your writing stays on your Mac. Only the aggregate numbers you choose are ever shared.</p>
+    </div>
+    <div class="feature">
+        <h2>Lifetime license</h2>
+        <p>One purchase, unlimited Macs, no subscription and no per-device limit.</p>
+    </div>
+</section>
+{% endblock %}

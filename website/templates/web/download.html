@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+
+{% block title %}Download — {{ platform_name }}{% endblock %}
+
+{% block content %}
+<section class="wrap page">
+    <h1>Download {{ product_name }} for Mac</h1>
+    <p class="lede">Requires macOS 13 or later. Apple Silicon or Intel.</p>
+
+    <p class="cta-row">
+        <a class="button" href="/download/latest/">Download the latest build</a>
+    </p>
+
+    <div class="note">
+        <h2>Signing in</h2>
+        <p>
+            After installing, open Settings and choose <strong>Sign in</strong>.
+            Yakitori opens this website in your browser, you approve the
+            installation, and the app stores its credential in your Mac's
+            Keychain. Your license is never tied to this machine.
+        </p>
+    </div>
+</section>
+{% endblock %}
