@@ -27,12 +27,16 @@ urlpatterns = [
     # Social graph: followers/following pages and follow action.
     path("", include("social.urls")),
 
+    # Leaderboard pages.
+    path("", include("leaderboards.urls")),
+
     # Versioned JSON API.
     path("v1/", include("accounts.api_urls")),
     path("v1/", include("profiles.api_urls")),
     path("v1/", include("commerce.api_urls")),
     path("v1/", include("licensing.api_urls")),
     path("v1/", include("social.api_urls")),
+    path("v1/", include("leaderboards.api_urls")),
 
     # Public marketing and legal pages (catch-all, keep last).
     path("", include("web.urls")),

@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+
+{% block title %}Leaderboards — {{ platform_name }}{% endblock %}
+
+{% block content %}
+<section class="wrap page">
+    <h1>Leaderboards</h1>
+    <p class="lede">
+        Leaderboards use Yakitori's existing metric definitions. They are opt-in:
+        you appear only if your profile is public and leaderboard participation
+        is enabled.
+    </p>
+
+    <ul class="member-list">
+        {% for metric, definition in metrics %}
+            <li>
+                <a href="{% url 'leaderboards:board' metric %}">
+                    <span>
+                        <strong>{{ metric.label }}</strong>
+                        <span class="handle">{{ definition }}</span>
+                    </span>
+                </a>
+            </li>
+        {% endfor %}
+    </ul>
+</section>
+{% endblock %}
