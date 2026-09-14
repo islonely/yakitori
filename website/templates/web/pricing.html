@@ -4,14 +4,17 @@
 
 {% block content %}
 <section class="wrap page">
+    <span class="eyebrow">Lifetime license</span>
     <h1>One price, owned forever</h1>
     <p class="lede">
         A perpetual, non-expiring license. Unlimited Mac installations, tied to
         your account rather than to a device.
     </p>
 
+    {% include "web/_free_vs_license.html" %}
+
     <div class="price-card">
-        <div class="price">{{ product_currency_symbol }}{% widthratio product_price_amount 100 1 %}.00</div>
+        <div class="price"><span class="currency">{{ product_currency_symbol }}</span>{% widthratio product_price_amount 100 1 %}<span class="fine-print">.00</span></div>
         <p class="price-note">one-time purchase &middot; lifetime license</p>
         <ul class="check-list">
             <li>Exact word counts in Word and Pages</li>

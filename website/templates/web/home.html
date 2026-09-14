@@ -1,33 +1,63 @@
 {% extends "base.html" %}
+{% load static %}
 
 {% block title %}{{ platform_name }} — private writing statistics for your Mac{% endblock %}
 
 {% block content %}
 <section class="hero wrap">
-    <h1>Know exactly how much you write.</h1>
-    <p class="lede">
-        {{ platform_name }} is a local-first macOS writing tracker. It counts exact
-        words in Microsoft Word and Apple Pages and time everywhere else — without
-        ever reading your manuscript.
-    </p>
-    <p class="cta-row">
-        <a class="button" href="{% url 'web:pricing' %}">Buy once, own forever</a>
-        <a class="button button-ghost" href="{% url 'web:download' %}">Download for Mac</a>
-    </p>
+    <div class="hero-inner">
+        <div>
+            <span class="eyebrow">Local-first · macOS</span>
+            <h1>Know exactly how much you write.</h1>
+            <p class="lede">
+                {{ platform_name }} is a local-first writing tracker for your Mac. It
+                counts exact words in Microsoft Word and Apple Pages and time
+                everywhere else — without ever reading your manuscript.
+            </p>
+            <p class="cta-row">
+                <a class="button" href="{% url 'web:pricing' %}">Buy once, own forever</a>
+                <a class="button button-ghost" href="{% url 'web:download' %}">Download for Mac</a>
+            </p>
+        </div>
+        <div>
+            <img class="hero-icon" src="{% static 'img/yakitori-icon-512.png' %}" alt="{{ platform_name }} app icon">
+        </div>
+    </div>
 </section>
 
-<section class="features wrap">
-    <div class="feature">
-        <h2>Exact, not estimated</h2>
-        <p>Real word counts from Word and Pages. No keystroke guessing, no fake precision.</p>
+<section class="section wrap">
+    <h2 class="section-title">Built for writers who count</h2>
+    <p class="section-sub">
+        Track the writer, not the writing. Yakitori observes your sessions, records
+        statistics, and shows the shape of your work over time.
+    </p>
+    <div class="features">
+        <div class="feature">
+            <span class="feature-icon">&#9679;</span>
+            <h2>Exact, not estimated</h2>
+            <p>Real word counts from Word and Pages. No keystroke guessing, no fake precision.</p>
+        </div>
+        <div class="feature">
+            <span class="feature-icon">&#9679;</span>
+            <h2>Private by design</h2>
+            <p>Your writing stays on your Mac. No manuscript, keystrokes, or clipboard ever leave it.</p>
+        </div>
+        <div class="feature">
+            <span class="feature-icon">&#9679;</span>
+            <h2>Depth that lasts</h2>
+            <p>Streaks, goals, projects, calendar heatmaps, and analytics across your whole history.</p>
+        </div>
     </div>
-    <div class="feature">
-        <h2>Private by design</h2>
-        <p>Your writing stays on your Mac. Only the aggregate numbers you choose are ever shared.</p>
-    </div>
-    <div class="feature">
-        <h2>Lifetime license</h2>
-        <p>One purchase, unlimited Macs, no subscription and no per-device limit.</p>
+</section>
+
+<section class="section wrap">
+    <div class="note">
+        <h2>A lifetime license, not a subscription</h2>
+        <p class="fine-print">
+            One purchase. Unlimited Macs. No renewal, no per-device limit, and no
+            account required to keep tracking. See
+            <a href="{% url 'web:pricing' %}">pricing</a> for what the license unlocks.
+        </p>
     </div>
 </section>
 {% endblock %}

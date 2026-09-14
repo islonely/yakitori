@@ -4,9 +4,17 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="color-scheme" content="dark light">
+    <meta name="color-scheme" content="dark">
+    <meta name="theme-color" content="#141110">
     <meta name="csrf-token" content="{{ csrf_token }}">
     <title>{% block title %}{{ platform_name }}{% endblock %}</title>
+
+    <link rel="icon" type="image/png" sizes="32x32" href="{% static 'img/yakitori-icon-32.png' %}">
+    <link rel="apple-touch-icon" href="{% static 'img/yakitori-icon-180.png' %}">
+    <meta property="og:title" content="{{ platform_name }}">
+    <meta property="og:description" content="Local-first writing statistics for your Mac. Exact word counts, lifetime license, unlimited Macs.">
+    <meta property="og:image" content="{% static 'img/yakitori-icon-512.png' %}">
+
     <link rel="stylesheet" href="{% static 'css/app.css' %}">
     <script src="https://unpkg.com/htmx.org@4.0.0/dist/htmx.min.js" defer></script>
     {% block head %}{% endblock %}
@@ -14,7 +22,10 @@
 <body>
     <header class="site-header">
         <div class="wrap header-inner">
-            <a class="brand" href="{% url 'web:home' %}">{{ platform_name }}</a>
+            <a class="brand" href="{% url 'web:home' %}">
+                <img src="{% static 'img/yakitori-icon-180.png' %}" alt="">
+                <span class="brand-name">{{ platform_name }}</span>
+            </a>
             <nav class="site-nav" aria-label="Primary">
                 <a href="{% url 'web:pricing' %}">Pricing</a>
                 <a href="{% url 'web:download' %}">Download</a>
@@ -40,7 +51,10 @@
 
     <footer class="site-footer">
         <div class="wrap footer-inner">
-            <span>&copy; {% now "Y" %} {{ platform_name }}</span>
+            <span class="footer-brand">
+                <img src="{% static 'img/yakitori-icon-180.png' %}" alt="">
+                &copy; {% now "Y" %} {{ platform_name }}
+            </span>
             <nav aria-label="Legal">
                 <a href="{% url 'web:privacy' %}">Privacy</a>
                 <a href="{% url 'web:terms' %}">Terms &amp; License</a>
