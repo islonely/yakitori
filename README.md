@@ -260,6 +260,10 @@ export, backup, and destructive-operation safety.
   (5 characters = 1 word). Deletions and modifier keys add nothing, but pasted
   text counts, and it only exists for Word/Pages sessions where character counts
   are available. It is not per-keystroke counting.
-- Widgets, cloud sync, accounts, AI analysis and monetization enforcement are
-  intentionally not implemented (roadmap phases scheduled for later), though
-  `Entitlement`/`FeatureFlags` abstractions exist.
+- Accounts and lifetime licensing now exist in the `website/` platform, and the
+  app can optionally sign in from the **Account** screen to attach a license.
+  Signing in is never required: tracking, statistics, and every local feature
+  work offline and signed out.
+- Cloud sync of writing data, widgets, and AI analysis are intentionally not
+  implemented. Writing data is never uploaded; only deliberately public
+  aggregate numbers ever can be.

@@ -117,6 +117,30 @@ app                         server                        browser
   never left orphaned.
 - Suspension is reversible; deletion is not.
 
+## macOS app integration
+
+The account and licensing services live in
+`Sources/WritingTrackerCore/Account/` and are injected through `AppContainer`.
+They are optional: the tracker continues to run locally when signed out or
+offline.
+
+- `AccountService` drives the device authorization flow, stores the bearer token
+  in the **Keychain** (`KeychainSecretStore`, never `UserDefaults`), registers
+  the installation, and exposes the signed-in account.
+- `InstallationIdentity` creates a random UUID on first use and stores it in the
+  Keychain. It is never derived from hardware identifiers.
+- `LicensingService` validates online and caches the signed authorization for
+  offline use, with a clock-rollback guard.
+- `LicenseVerifier` verifies the Ed25519 authorization using public keys read
+  from `Info.plist` (`YakitoriLicensePublicKeys`). The private key never exists
+  in the app.
+- The API base URL comes from `Info.plist` (`YakitoriAPIBaseURL`); release builds
+  must point it at the production origin.
+
+The Account screen (`UI/Account/AccountView.swift`) shows sign-in, the device
+code, the license state (active / offline grace / invalid / unavailable / clock
+anomaly), and the installation id. None of this blocks tracking.
+
 ## Threat considerations
 
 | Threat | Mitigation |

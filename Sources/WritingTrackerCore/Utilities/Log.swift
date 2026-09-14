@@ -16,6 +16,7 @@ public enum Log {
     public static let integrations = Logger(subsystem: subsystem, category: "integrations")
     public static let statistics = Logger(subsystem: subsystem, category: "statistics")
     public static let export = Logger(subsystem: subsystem, category: "export")
+    public static let account = Logger(subsystem: subsystem, category: "account")
 }
 
 /// Common errors surfaced by the core.

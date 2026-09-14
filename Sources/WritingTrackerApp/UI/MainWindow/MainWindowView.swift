@@ -24,7 +24,7 @@ struct MainWindowView: View {
                         }
                     }
                     Section {
-                        ForEach([SidebarSection.settings, .privacy]) { section in
+                        ForEach([SidebarSection.account, .settings, .privacy]) { section in
                             sidebarRow(section)
                         }
                     }
@@ -97,6 +97,7 @@ struct MainWindowView: View {
         case .reports: ReportsView()
         case .achievements: AchievementsView()
         case .community: CommunityView()
+        case .account: AccountView()
         case .settings: SettingsView()
         case .privacy: PrivacyView()
         }

@@ -1,3 +1,4 @@
+import AppKit
 import Foundation
 import SwiftUI
 import WritingTrackerCore
@@ -27,7 +28,14 @@ final class AppState: ObservableObject {
     @Published var alertMessage: String?
     @Published var isOnboardingPresented = false
 
+    @Published var accountState: AccountState = .signedOut
+    @Published var licensingState: LicensingState = .signedOut
+    @Published var deviceAuthorization: DeviceAuthorization?
+    @Published var isDeviceSignInPresented = false
+    @Published var deviceSignInError: String?
+
     private var isStarted = false
+    private var devicePollingTask: Task<Void, Never>?
     private let globalHotkey = GlobalHotkey()
 
     private init() {
@@ -93,6 +101,7 @@ final class AppState: ObservableObject {
         }
         container.notifications.requestAuthorizationIfNeeded()
         configureGlobalHotkey()
+        configureAccount()
 
         // Re-check permissions when the user returns from System Settings.
         NotificationCenter.default.addObserver(
@@ -108,8 +117,124 @@ final class AppState: ObservableObject {
     }
 
     func shutdown() {
+        devicePollingTask?.cancel()
         container.trackingEngine.endActiveSession()
         container.trackingEngine.stop()
+    }
+
+    // MARK: - Account and licensing
+
+    private func configureAccount() {
+        container.account.onStateChange = { [weak self] state in
+            Task { @MainActor in self?.handleAccountState(state) }
+        }
+        container.licensing.onStateChange = { [weak self] state in
+            Task { @MainActor in self?.licensingState = state }
+        }
+        accountState = container.account.state
+
+        // Restore a stored session in the background; tracking is unaffected.
+        Task { await restoreAccountIfPossible() }
+    }
+
+    private func restoreAccountIfPossible() async {
+        let restored = await container.account.restoreSession()
+        accountState = container.account.state
+        if restored {
+            await container.licensing.refresh()
+        } else {
+            licensingState = .signedOut
+        }
+    }
+
+    private func handleAccountState(_ state: AccountState) {
+        accountState = state
+        switch state {
+        case .signedIn:
+            Task { await container.licensing.refresh() }
+        case .signedOut:
+            Task { await container.licensing.setSignedIn(false) }
+        case .error:
+            break
+        }
+    }
+
+    func beginDeviceSignIn() {
+        deviceSignInError = nil
+        Task {
+            do {
+                let authorization = try await container.account.beginSignIn()
+                deviceAuthorization = authorization
+                isDeviceSignInPresented = true
+                let urlString = authorization.verificationUriComplete ?? authorization.verificationUri
+                if let url = URL(string: urlString) {
+                    NSWorkspace.shared.open(url)
+                }
+                startPollingDeviceAuthorization(authorization)
+            } catch {
+                deviceSignInError = error.localizedDescription
+            }
+        }
+    }
+
+    private func startPollingDeviceAuthorization(_ authorization: DeviceAuthorization) {
+        devicePollingTask?.cancel()
+        devicePollingTask = Task { [weak self] in
+            guard let self else { return }
+            let interval = max(1, authorization.interval)
+
+            while !Task.isCancelled {
+                try? await Task.sleep(nanoseconds: UInt64(interval) * 1_000_000_000)
+                if Task.isCancelled { return }
+
+                do {
+                    let result = try await self.container.account.pollForToken(authorization)
+                    switch result {
+                    case .pending, .slowDown:
+                        continue
+                    case .authorized(let token):
+                        try await self.container.account.completeSignIn(token: token.token)
+                        self.isDeviceSignInPresented = false
+                        self.deviceAuthorization = nil
+                        self.accountState = self.container.account.state
+                        await self.container.licensing.refresh()
+                        return
+                    }
+                } catch {
+                    self.deviceSignInError = error.localizedDescription
+                    self.isDeviceSignInPresented = false
+                    return
+                }
+            }
+        }
+    }
+
+    func cancelDeviceSignIn() {
+        devicePollingTask?.cancel()
+        isDeviceSignInPresented = false
+        deviceAuthorization = nil
+    }
+
+    func openDeviceVerificationPage() {
+        guard let authorization = deviceAuthorization else { return }
+        let string = authorization.verificationUriComplete ?? authorization.verificationUri
+        if let url = URL(string: string) {
+            NSWorkspace.shared.open(url)
+        }
+    }
+
+    func signOutAccount() {
+        devicePollingTask?.cancel()
+        Task {
+            await container.account.signOut()
+            await container.licensing.setSignedIn(false)
+            accountState = .signedOut
+            licensingState = .signedOut
+        }
+    }
+
+    func refreshLicense() {
+        Task { await container.licensing.refresh() }
     }
 
     /// Reloads persisted data and settings. Called after any structural change.
@@ -248,6 +373,7 @@ enum SidebarSection: String, CaseIterable, Identifiable, Hashable {
     case reports
     case achievements
     case community
+    case account
     case settings
     case privacy
 
@@ -264,6 +390,7 @@ enum SidebarSection: String, CaseIterable, Identifiable, Hashable {
         case .reports: return "Reports"
         case .achievements: return "Achievements"
         case .community: return "Community"
+        case .account: return "Account"
         case .settings: return "Settings"
         case .privacy: return "Privacy"
         }
@@ -280,6 +407,7 @@ enum SidebarSection: String, CaseIterable, Identifiable, Hashable {
         case .reports: return "doc.text"
         case .achievements: return "trophy"
         case .community: return "person.3"
+        case .account: return "person.crop.circle"
         case .settings: return "gearshape"
         case .privacy: return "hand.raised"
         }

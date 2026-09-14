@@ -94,6 +94,17 @@ def me(request):
     return json_response({"user": serialize_user(request.api_user)})
 
 
+@api_endpoint(["DELETE"])
+@api_login_required
+def current_token(request):
+    """Revoke the token that authenticated this request (sign out)."""
+    token = request.api_token
+    if token is None:
+        raise ApiError(400, "no_token", "This request was not authenticated with a token.")
+    services.revoke_api_token(request.api_user, token.pk)
+    return json_response({"revoked": True})
+
+
 @api_endpoint(["GET"])
 @api_login_required
 def tokens(request):

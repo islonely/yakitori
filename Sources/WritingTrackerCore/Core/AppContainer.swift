@@ -20,6 +20,8 @@ public final class AppContainer {
     public let notifications: NotificationService
     public let association: ProjectAssociationService
     public let social: SocialService
+    public let account: AccountService
+    public let licensing: LicensingService
     public let trackingEngine: TrackingEngine
     public let settingsRepository: SettingsRepository
     public let applicationRepository: WritingApplicationRepository
@@ -32,7 +34,9 @@ public final class AppContainer {
         dateProvider: DateProviding = SystemDateProvider(),
         calendarContext: CalendarContext = CalendarContext(),
         registry: AdapterRegistry = .shared,
-        idleProvider: SystemIdleProviding = CGSystemIdleProvider()
+        idleProvider: SystemIdleProviding = CGSystemIdleProvider(),
+        platformConfiguration: PlatformConfiguration = .fromBundle(),
+        secretStore: SecretStoring = KeychainSecretStore()
     ) {
         self.database = database
         self.permissionProvider = permissionProvider
@@ -54,6 +58,17 @@ public final class AppContainer {
         self.notifications = NotificationService(database: database)
         self.association = ProjectAssociationService(database: database)
         self.social = SocialService(database: database, statistics: statistics, dateProvider: dateProvider)
+        self.account = AccountService(
+            configuration: platformConfiguration,
+            transport: URLSessionTransport(),
+            secrets: secretStore
+        )
+        self.licensing = LicensingService(
+            configuration: platformConfiguration,
+            transport: URLSessionTransport(),
+            secrets: secretStore,
+            dateProvider: dateProvider
+        )
         self.trackingEngine = TrackingEngine(
             database: database,
             permissionProvider: permissionProvider,

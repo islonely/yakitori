@@ -32,5 +32,10 @@
     <string>Yakitori uses Apple Events to ask Microsoft Word or Pages for the active document and its exact word count. Your document text is never stored.</string>
     <key>NSHumanReadableCopyright</key>
     <string>Copyright © 2026 Yakitori. All rights reserved.</string>
+    <!-- Platform configuration. Replace both values in production builds. -->
+    <key>YakitoriAPIBaseURL</key>
+    <string>http://localhost:8000</string>
+    <key>YakitoriLicensePublicKeys</key>
+    <string>dev-1=yIVNZcgsOIueUc3v7xySdD_xNWuQgr0s3UQt6fopni0</string>
 </dict>
 </plist>
