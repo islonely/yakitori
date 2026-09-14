@@ -12,7 +12,10 @@ from . import services
 from .models import ApiToken, LoginChallenge, User
 
 
-@override_settings(EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend")
+@override_settings(
+    EMAIL_PROVIDER="smtp",
+    EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend",
+)
 class PasswordlessLoginTests(TestCase):
     def test_request_login_creates_challenge_and_sends_email(self):
         response = self.client.post("/sign-in/", {"email": "Writer@Example.com"})

@@ -19,7 +19,7 @@
             <li>Works offline; no subscription</li>
             <li>Refunds handled through the payment provider</li>
         </ul>
-        <a class="button" href="/buy/">Buy {{ product_name }}</a>
+        <a class="button" href="{% url 'commerce:buy' %}">Buy {{ product_name }}</a>
     </div>
 
     <p class="fine-print">

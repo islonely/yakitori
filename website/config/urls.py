@@ -18,9 +18,13 @@ urlpatterns = [
     # Public profiles and dashboard profile/privacy pages (HTML).
     path("", include("profiles.urls")),
 
+    # Commerce: checkout pages and the provider webhook.
+    path("", include("commerce.urls")),
+
     # Versioned JSON API.
     path("v1/", include("accounts.api_urls")),
     path("v1/", include("profiles.api_urls")),
+    path("v1/", include("commerce.api_urls")),
 
     # Public marketing and legal pages (catch-all, keep last).
     path("", include("web.urls")),

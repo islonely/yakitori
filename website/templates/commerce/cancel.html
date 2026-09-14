@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+
+{% block title %}Checkout cancelled — {{ platform_name }}{% endblock %}
+
+{% block content %}
+<section class="wrap page">
+    <h1>Checkout cancelled</h1>
+    <p class="lede">No payment was taken. You can try again any time.</p>
+    <p><a class="button" href="{% url 'web:pricing' %}">Back to pricing</a></p>
+</section>
+{% endblock %}
