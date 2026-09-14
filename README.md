@@ -85,6 +85,11 @@ Any other application can still be added and tracked for time and focus.
   stacks, project mix, session-type stacks, streak history, added vs removed,
   personal records, projection cones, burn-down, per-document history, milestone
   timelines, project comparison, and a months-by-years grid.
+- **Advanced analytics**: session-duration and daily-output distributions,
+  productivity by session length and by work type, goal performance history,
+  project velocity, writing cadence (time between sessions), project effort by
+  phase, cumulative lifetime output, and rolling output variability. All reuse
+  the existing definitions and are covered by unit tests.
 - **CSV/JSON export**, verified database backups, and safe destructive operations.
 - **Privacy by design**: no manuscript text, keystrokes, clipboard, or screenshots.
 

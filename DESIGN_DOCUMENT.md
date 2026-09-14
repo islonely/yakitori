@@ -2618,6 +2618,171 @@ Charts support:
 
 ---
 
+# 84A. Additional Analytics Visualizations
+
+Ten further visualizations answer questions the earlier charts do not. They are
+computed by a dedicated `AnalyticsService` (Core) and rendered with Swift Charts
+on the Statistics and Project screens. None infer word counts from keystrokes;
+all reuse the existing definitions of net word change, active time, and daily
+aggregates.
+
+Shared implementation notes:
+
+- **Architecture**: `AnalyticsService` -> result models (`AnalyticsModels`) ->
+  chart views (`UI/Charts/AnalyticsCharts.swift`). Views do not compute.
+- **Filters**: calculators accept the existing `SessionFilter` (date range,
+  project, application, session type). The Statistics screen applies its date
+  range; project-scoped charts apply the project.
+- **Exact vs estimated**: gross words worked is derived from the existing
+  added/removed aggregation and is always labelled estimated; net manuscript
+  change comes from document word counts.
+- **Empty states**: each card shows an explicit message instead of an empty chart.
+- **Accessibility**: every card exposes an accessibility summary (measure, range,
+  key values, sample sizes).
+- **Performance**: goal history precomputes daily statistics once instead of
+  querying per period.
+
+## 1. Session Duration (histogram)
+
+- **Purpose**: reveal the spread of session lengths, not just their average.
+- **Metric**: completed session duration in minutes.
+- **Calculation**: sessions in range with duration > 0; evenly spaced bins
+  (about 6 to 15); mean, median, P25, P75, min, max.
+- **Visualization**: histogram with a median/mean marker legend and stats row.
+- **Filters**: date range, project, application, session type.
+- **Data quality**: duration is wall clock (ended minus started); zero and
+  negative durations are excluded. Distinct from active time.
+- **Empty**: "No completed sessions with a valid duration yet."
+- **Caveat**: duration is not active time; a long session may contain idle
+  stretches.
+
+## 2. Daily Output Distribution (histogram)
+
+- **Purpose**: show what a typical writing day looks like.
+- **Metric**: net words (default), or gross words worked, per writing day.
+- **Calculation**: writing days in range (days with at least one session);
+  evenly spaced bins; mean/median/P25/P75/min/max. Negative and zero-net days are
+  kept.
+- **Visualization**: histogram with a metric picker and a stats row.
+- **Filters**: date range.
+- **Data quality**: gross worked is estimated (derived from added + removed where
+  exact edits are unavailable).
+- **Empty**: "No writing days in this range."
+- **Caveat**: empty calendar days are excluded so they do not distort the shape.
+
+## 3. Productivity by Session Length (dot plot)
+
+- **Purpose**: describe how efficiency changes as sessions get longer.
+- **Metric**: net words per active hour.
+- **Calculation**: sessions with active time > 0 grouped into fixed duration
+  bands; per band median and P25-P75; bands with fewer than 3 sessions withheld.
+- **Visualization**: dot plot with interquartile range bars and sample counts.
+- **Filters**: date range, project, application, session type.
+- **Data quality**: net over active time; never keystrokes.
+- **Empty**: "Not enough sessions in any duration band yet."
+- **Caveat**: medians are shown because productivity has heavy outliers; longer
+  is not inherently better.
+
+## 4. Goal Performance (time series)
+
+- **Purpose**: show how consistently goals are actually met.
+- **Metric**: attainment = actual / target x 100 for each completed period.
+- **Calculation**: one representative goal per period type; completed
+  daily/weekly/monthly periods from the goal start (capped at the first tracked
+  day) up to but excluding the current incomplete period; met/missed, success
+  rate, median/average attainment, longest consecutive success run.
+- **Visualization**: line and points coloured Met/Close/Missed, a 100% reference
+  line, and summary statistics.
+- **Filters**: period type; the date range does not truncate goal history.
+- **Data quality**: periods before tracking began are not counted as failures.
+- **Empty**: "No completed <period> goal periods yet."
+- **Caveat**: only one goal per period type is charted; a completed period with no
+  activity counts as missed.
+
+## 5. Project Velocity (time series)
+
+- **Purpose**: show how fast a project progresses, and whether speed changes.
+- **Metric**: net words per day or per week for a single project.
+- **Calculation**: project sessions grouped by day/week, gaps filled between first
+  and last activity; rolling average over 7 days (daily) or 4 weeks (weekly).
+- **Visualization**: bars for raw output plus a rolling-average line, omitted when
+  there is too little data.
+- **Filters**: project (chart lives on the project screen); optional date range.
+- **Data quality**: net manuscript change only; unrelated projects excluded.
+- **Empty**: "Not enough project activity in this range."
+- **Caveat**: research sessions can add active time without manuscript words.
+
+## 6. Writing Cadence (histogram)
+
+- **Purpose**: measure how long you typically go between writing sessions.
+- **Metric**: time from the end of one session to the start of the next.
+- **Calculation**: sessions sorted chronologically; the first session has no gap;
+  fixed bins from under 15 minutes to 7+ days; median/mean/P25/P75/min/max.
+- **Visualization**: histogram with a stats row.
+- **Filters**: date range, project, application, session type.
+- **Data quality**: overlapping sessions are ignored rather than counted as a
+  zero-minute gap.
+- **Empty**: "Need at least two sessions to measure gaps."
+- **Caveat**: cadence measures spacing, not preferred clock time.
+
+## 7. Project Effort by Phase (100% stacked horizontal bar)
+
+- **Purpose**: show where a project's effort goes across writing phases.
+- **Metric**: active time per session type.
+- **Calculation**: active seconds summed per session type, normalized to 100% per
+  project.
+- **Visualization**: 100% stacked horizontal bars, one per project; comparison
+  mode renders multiple projects with shared colours.
+- **Filters**: project (single, or the two compared in Reports).
+- **Data quality**: active time is the denominator, not net words; unknown types
+  are retained.
+- **Empty**: "No active time recorded for these projects."
+- **Caveat**: proportions are descriptive and do not rank phases by value.
+
+## 8. Cumulative Lifetime Output (cumulative line)
+
+- **Purpose**: a career trajectory of total output over recorded time.
+- **Metric**: cumulative net manuscript words (default), or gross words worked.
+- **Calculation**: daily aggregates in date order; running total that does not
+  reset at project boundaries and may decrease on negative-net days.
+- **Visualization**: line and area.
+- **Filters**: metric toggle; lifetime scope (no date truncation).
+- **Data quality**: gross worked is estimated.
+- **Empty**: "No writing history yet."
+- **Caveat**: project-scoped cumulative progress already exists on the project
+  screen; this chart is intentionally lifetime-scoped.
+
+## 9. Output Variability (rolling line)
+
+- **Purpose**: measure consistency rather than average output.
+- **Metric**: rolling coefficient of variation (standard deviation / mean) over a
+  7-writing-day window; falls back to standard deviation when the mean is zero.
+- **Calculation**: writing days only, in date order; rolling window statistics.
+- **Visualization**: line and area.
+- **Filters**: date range.
+- **Data quality**: writing days only, never calendar days.
+- **Empty**: "Need at least 7 writing days for this window."
+- **Caveat**: a lower value means steadier output, not better writing.
+
+## 10. Productivity by Work Type (dot plot)
+
+- **Purpose**: compare productivity characteristics across types of work.
+- **Metric**: median net words per active hour per session type.
+- **Calculation**: sessions with active time grouped by type; median, mean,
+  P25-P75, sample count; categories with fewer than 3 sessions withheld.
+- **Visualization**: dot plot with interquartile range bars and sample counts.
+- **Filters**: date range, project, application, session type.
+- **Data quality**: net over active time.
+- **Empty**: "Not enough sessions of any type yet."
+- **Caveat**: descriptive only. Research and proofreading legitimately produce few
+  or no manuscript words; this is not a ranking of work quality.
+
+Implementation status: all ten are implemented in `AnalyticsService` with unit
+tests, on the Statistics screen (and the Project screen for velocity and effort
+by phase, plus Reports comparison for effort by phase).
+
+---
+
 # 85. Accessibility
 
 The GUI should support:

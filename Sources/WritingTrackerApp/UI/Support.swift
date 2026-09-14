@@ -21,6 +21,10 @@ enum Format {
         DurationFormatter.short(seconds)
     }
 
+    static func durationMinutes(_ minutes: Double) -> String {
+        DurationFormatter.short(minutes * 60)
+    }
+
     static func percent(_ fraction: Double) -> String {
         "\(Int((fraction * 100).rounded()))%"
     }

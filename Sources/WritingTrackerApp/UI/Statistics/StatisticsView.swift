@@ -6,8 +6,12 @@ struct StatisticsView: View {
     @EnvironmentObject private var state: AppState
     @State private var range: DateRangeOption = .thisMonth
     @State private var matrixMetric: MatrixMetric = .words
+    @State private var dailyMetric: DailyOutputMetric = .netWords
+    @State private var goalPeriod: GoalPeriod = .daily
+    @State private var cumulativeMetric: CumulativeOutputMetric = .netWords
 
     private var statistics: StatisticsService { state.container.statistics }
+    private var analytics: AnalyticsService { state.container.analytics }
     private var calendar: CalendarContext { statistics.calendar }
 
     var body: some View {
@@ -17,7 +21,10 @@ struct StatisticsView: View {
                 summaryGrid
                 recordsSection
                 lifetimeSection
+                cumulativeOutputCard
+                goalPerformanceCard
                 rollingAverageChart
+                dailyOutputDistributionCard
                 HStack(alignment: .top, spacing: 16) {
                     activeTimeChart
                     writingClockCard
@@ -25,13 +32,22 @@ struct StatisticsView: View {
                 matrixCard
                 scatterCard
                 HStack(alignment: .top, spacing: 16) {
+                    sessionDurationCard
+                    productivityByLengthCard
+                }
+                HStack(alignment: .top, spacing: 16) {
                     paceTrendCard
                     paceHistogramCard
+                }
+                HStack(alignment: .top, spacing: 16) {
+                    variabilityCard
+                    cadenceCard
                 }
                 HStack(alignment: .top, spacing: 16) {
                     focusActiveCard
                     sessionTypeCard
                 }
+                workTypeCard
                 projectMixCard
                 HStack(alignment: .top, spacing: 16) {
                     streakLadderCard
@@ -57,6 +73,73 @@ struct StatisticsView: View {
     private var interval: DateInterval { range.interval(calendar: calendar) }
     private var days: [DailyStatistics] { statistics.dailyStatistics(from: interval.start, to: calendar.addingDays(-1, to: interval.end)) }
     private var period: PeriodStatistics { statistics.periodStatistics(start: interval.start, end: interval.end) }
+
+    private var sessionFilter: SessionFilter {
+        SessionFilter(startDate: interval.start, endDate: interval.end)
+    }
+
+    private var cumulativeOutputCard: some View {
+        CumulativeOutputChart(
+            points: analytics.cumulativeLifetimeOutput(metric: cumulativeMetric),
+            metric: cumulativeMetric,
+            accessory: AnyView(cumulativeMetricPicker)
+        )
+    }
+
+    private var cumulativeMetricPicker: some View {
+        Picker("Metric", selection: $cumulativeMetric) {
+            ForEach(CumulativeOutputMetric.allCases) { Text($0.title).tag($0) }
+        }
+        .pickerStyle(.segmented)
+        .frame(width: 300)
+    }
+
+    private var goalPerformanceCard: some View {
+        GoalPerformanceChart(history: analytics.goalPerformance(period: goalPeriod), accessory: AnyView(goalPeriodPicker))
+    }
+
+    private var goalPeriodPicker: some View {
+        Picker("Period", selection: $goalPeriod) {
+            ForEach([GoalPeriod.daily, .weekly, .monthly]) { Text($0.displayName).tag($0) }
+        }
+        .pickerStyle(.segmented)
+        .frame(width: 260)
+    }
+
+    private var dailyOutputDistributionCard: some View {
+        DailyOutputHistogramChart(
+            distribution: analytics.dailyOutputDistribution(range: interval, metric: dailyMetric),
+            accessory: AnyView(dailyMetricPicker)
+        )
+    }
+
+    private var dailyMetricPicker: some View {
+        Picker("Metric", selection: $dailyMetric) {
+            ForEach(DailyOutputMetric.allCases) { Text($0.title).tag($0) }
+        }
+        .pickerStyle(.segmented)
+        .frame(width: 280)
+    }
+
+    private var sessionDurationCard: some View {
+        SessionDurationHistogramChart(distribution: analytics.sessionDurationDistribution(filter: sessionFilter))
+    }
+
+    private var productivityByLengthCard: some View {
+        ProductivityByLengthChart(data: analytics.productivityBySessionLength(filter: sessionFilter))
+    }
+
+    private var variabilityCard: some View {
+        VariabilityChart(series: analytics.outputVariability(window: 7, range: interval))
+    }
+
+    private var cadenceCard: some View {
+        WritingCadenceHistogramChart(cadence: analytics.writingCadence(filter: sessionFilter))
+    }
+
+    private var workTypeCard: some View {
+        WorkTypeProductivityChart(items: analytics.productivityByWorkType(filter: sessionFilter))
+    }
 
     private var rollingAverageChart: some View {
         VStack(alignment: .leading, spacing: 12) {

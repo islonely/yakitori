@@ -9,6 +9,7 @@ public final class AppContainer {
     public let calendarContext: CalendarContext
 
     public let statistics: StatisticsService
+    public let analytics: AnalyticsService
     public let projects: ProjectService
     public let goals: GoalService
     public let sessions: SessionService
@@ -42,6 +43,7 @@ public final class AppContainer {
         self.settings = (try? settingsRepository.load()) ?? .default
 
         self.statistics = StatisticsService(database: database, dateProvider: dateProvider, calendarContext: calendarContext, settings: settings)
+        self.analytics = AnalyticsService(database: database, statistics: statistics, dateProvider: dateProvider)
         self.projects = ProjectService(database: database)
         self.goals = GoalService(database: database, statistics: statistics)
         self.sessions = SessionService(database: database, statistics: statistics)

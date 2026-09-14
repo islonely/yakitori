@@ -17,8 +17,10 @@ struct ProjectDetailView: View {
     @State private var newRuleValue = ""
     @State private var newRuleType: AssociationRule.RuleType = .folderPath
     @State private var confirmDelete = false
+    @State private var velocityGranularity: VelocityGranularity = .weekly
 
     private var statistics: StatisticsService { state.container.statistics }
+    private var analytics: AnalyticsService { state.container.analytics }
     private var calendar: CalendarContext { statistics.calendar }
 
     var body: some View {
@@ -29,6 +31,8 @@ struct ProjectDetailView: View {
                     progressCards(project, stats)
                     projections(stats)
                     charts(project)
+                    velocityCard(project)
+                    phaseEffortCard
                     milestonesSection
                     rulesSection
                     sessionsSection
@@ -156,6 +160,25 @@ struct ProjectDetailView: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .cardStyle()
+    }
+
+    private func velocityCard(_ project: Project) -> some View {
+        ProjectVelocityChart(
+            velocity: analytics.projectVelocity(projectID: project.id, granularity: velocityGranularity),
+            accessory: AnyView(velocityPicker)
+        )
+    }
+
+    private var velocityPicker: some View {
+        Picker("Granularity", selection: $velocityGranularity) {
+            ForEach(VelocityGranularity.allCases) { Text($0.title).tag($0) }
+        }
+        .pickerStyle(.segmented)
+        .frame(width: 180)
+    }
+
+    private var phaseEffortCard: some View {
+        PhaseEffortChart(efforts: analytics.effortByPhase(projectIDs: [projectID]))
     }
 
     private func charts(_ project: Project) -> some View {

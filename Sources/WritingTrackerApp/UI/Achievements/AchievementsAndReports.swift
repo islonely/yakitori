@@ -181,6 +181,7 @@ struct ReportsView: View {
                     isTime: false,
                     height: 160
                 )
+                PhaseEffortChart(efforts: state.container.analytics.effortByPhase(projectIDs: [a.id, b.id]))
                 ForEach(comparisons) { comparison in
                     HStack {
                         Text(comparison.label).foregroundStyle(.secondary)
