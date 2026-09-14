@@ -85,13 +85,7 @@ struct PrivacyView: View {
 
     private var promptsSection: some View {
         VStack(alignment: .leading, spacing: 14) {
-            SectionHeader(title: "Prompts you might see", subtitle: "Yakitori asks for permissions only when a feature needs them, and keeps working if you say no")
-            prompt(
-                "Accessibility",
-                "“Yakitori would like to control this computer using accessibility features.”",
-                "Lets Yakitori notice when you're actively typing (a timestamp only, never the keys). Without it, time tracking still works, but it can't tell active writing from being idle."
-            )
-            Divider()
+            SectionHeader(title: "Prompts you might see", subtitle: "Yakitori asks for permissions only when a feature needs them, and keeps working if you say no. Activity tracking needs no permission at all.")
             prompt(
                 "Automation (AppleScript)",
                 "“Yakitori wants to control Microsoft Word.”",
@@ -111,7 +105,7 @@ struct PrivacyView: View {
             )
             HStack(spacing: 10) {
                 Button("Open Privacy & Security") {
-                    state.openSystemSettings(for: .accessibility)
+                    state.openPrivacySettings()
                 }
                 Button("Open Permission Center") {
                     state.selectedSection = .settings

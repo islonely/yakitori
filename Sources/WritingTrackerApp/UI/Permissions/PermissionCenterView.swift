@@ -5,7 +5,6 @@ struct PermissionCenterView: View {
     @EnvironmentObject private var state: AppState
 
     private let explanations: [PermissionKind: String] = [
-        .accessibility: "Lets Yakitori detect that you are active while another app is frontmost. Only activity timestamps are recorded; what you type is never saved.",
         .wordAutomation: "Lets Yakitori ask Microsoft Word or Pages for the active document and its exact word count. Document text is never read or stored.",
         .fileAccess: "Only used for files or folders you explicitly select. Full Disk Access is never requested.",
         .notifications: "Used to deliver goal, streak, and milestone notifications. Optional.",
@@ -14,7 +13,7 @@ struct PermissionCenterView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            SectionHeader(title: "Permission Center", subtitle: "Capabilities degrade gracefully when a permission is unavailable")
+            SectionHeader(title: "Permission Center", subtitle: "Activity tracking needs no permission; capabilities degrade gracefully when optional permissions are unavailable")
             ForEach(PermissionKind.allCases) { kind in
                 permissionRow(kind)
                 if kind != PermissionKind.allCases.last { Divider() }

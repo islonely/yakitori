@@ -11,7 +11,7 @@ struct OnboardingView: View {
     @State private var projectDeadline = Date()
     @State private var hasDeadline = false
 
-    private let stepCount = 7
+    private let stepCount = 6
 
     var body: some View {
         VStack(spacing: 0) {
@@ -29,9 +29,8 @@ struct OnboardingView: View {
         case 0: welcomeStep
         case 1: applicationsStep
         case 2: modeStep
-        case 3: accessibilityStep
-        case 4: wordStep
-        case 5: projectStep
+        case 3: wordStep
+        case 4: projectStep
         default: doneStep
         }
     }
@@ -112,16 +111,6 @@ struct OnboardingView: View {
         .padding(28)
     }
 
-    private var accessibilityStep: some View {
-        stepLayout(
-            symbol: "hand.raised",
-            title: "Accessibility permission",
-            body: "Accessibility lets Yakitori detect that you are active in another app. The app records activity timestamps only — it never saves what you type.",
-            primary: ("Grant Accessibility Permission", { state.requestPermission(.accessibility) }),
-            secondary: ("Skip for Now", { advance() })
-        )
-    }
-
     private var wordStep: some View {
         let documentApps = state.settings.selectedApplicationIDs.compactMap { id in
             try? state.container.applicationRepository.find(id: id)
@@ -171,7 +160,7 @@ struct OnboardingView: View {
                 .font(.caption).foregroundStyle(.secondary)
             Spacer()
             Button(step == stepCount - 1 ? "Get Started" : "Continue") {
-                if step == 5 { createProject() }
+                if step == 4 { createProject() }
                 else if step == stepCount - 1 { finish() }
                 else { advance() }
             }

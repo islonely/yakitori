@@ -424,59 +424,40 @@ The tracker should not assume that keyboard events alone are sufficient to deter
 
 ---
 
-# 12. Keyboard Activity
+# 12. Activity Detection
 
-The tracker may use macOS event monitoring to determine whether the user is actively interacting with the computer.
+The tracker determines whether the user is actively interacting with the computer
+using the **system idle counter** (`CGEventSource.secondsSinceLastEventType`),
+polled on a short interval. This is the implemented mechanism and has important
+benefits:
 
-Important:
+- **No keyboard or mouse events are observed at all.** The app does not install a
+  global event monitor, so there is no per-keystroke work and no keystroke
+  latency. No characters, key codes, or modifier combinations are ever received.
+- **No permission is required.** The idle counter is available without
+  Accessibility.
+- Activity resolution is bounded by the poll interval (about two seconds), which
+  is more than sufficient for writing analytics.
 
-**Do NOT record the actual characters typed.**
+The application stores only timestamps and derived durations, never typed content.
 
-The application only needs information such as:
-
-```text
-keyboard activity occurred
-timestamp
-event type
-```
-
-It should NOT store:
-
-```text
-"This is the actual text the user typed."
-```
-
-Privacy should be a major selling point.
-
-The application should be able to say:
-
-> "You typed/interacted for 27 minutes."
-
-without knowing what the user wrote.
+To avoid interrupting a writing application while the user types, **word-count
+samples are only taken during a natural pause** (no input for at least two
+seconds) or at a session boundary (start, pause, stop, sleep, quit). The periodic
+sampling timer is a backstop and is likewise pause-gated.
 
 ---
 
 # 13. Accessibility Permission
 
-Some functionality will require macOS Accessibility permission.
+**Not required.** Earlier designs used Accessibility for global keyboard activity
+detection. The implementation now infers activity from the system idle counter,
+so Accessibility is not requested, not needed, and not used. The application
+works fully without it.
 
-The onboarding experience should clearly explain why.
-
-Example:
-
-> **Accessibility Access**
->
-> Writing Tracker needs permission to detect when you are actively working in your selected writing applications.
->
-> We do not record the text you type.
->
-> We only record activity timestamps and application/document statistics.
-
-Provide a button:
-
-`Open System Settings`
-
-The application should detect whether permission has been granted.
+This reduces the permission surface to only what a feature genuinely needs:
+Automation for Word/Pages word counts, optional file access, optional
+notifications, and an optional login item.
 
 ---
 
@@ -3312,6 +3293,32 @@ Target:
 
 The tracking engine must never block the main thread.
 
+## Implemented measures
+
+- **Activity by idle counter, not event interception.** No global key or mouse
+  monitor is installed, so the app never participates in the input path and
+  cannot add keystroke latency.
+- **Pause-gated word sampling.** `compute statistics` is only requested during a
+  natural pause or at a session boundary, never mid-typing, so writing apps are
+  not interrupted while the user writes.
+- **Trimmed Word script.** Only the word and character statistics are requested
+  (pages are omitted), halving the work done inside Word per sample.
+- **Reduced steady-state work.** The periodic word-sample interval is 30 seconds
+  (pause-gated), session checkpoints are every 30 seconds, and per-keystroke
+  `keyboardActivity`/`mouseActivity` events are no longer written.
+- **Cached snapshot.** The engine caches today's aggregate so high-frequency
+  activity ticks do not query the database.
+- **Bounded queries.** Snapshot-backed analytics load only the requested date
+  range rather than the entire snapshot table.
+- **Background engine queue.** All tracking and persistence runs on a dedicated
+  serial queue; the UI reads a cached snapshot and never blocks.
+- **Measured baseline.** `PerformanceTests` records averages for aggregate
+  rebuilding, lifetime/streak statistics, the analytics bundle, goal history,
+  statistics math, the session state machine, and session persistence.
+
+Further work (not yet implemented): memoizing chart analytics per data version,
+and pruning/compacting the raw `activity_events` table over time.
+
 ---
 
 # 108. Offline First
@@ -3549,7 +3556,8 @@ Choose tracking mode.
 
 Grant permissions.
 
-Explain Accessibility/Automation permissions.
+Explain the optional Automation permission for Word/Pages word counts. Activity
+tracking itself requires no permission, so there is no Accessibility step.
 
 ## Step 5
 
@@ -4177,11 +4185,12 @@ This should be treated as a core architectural requirement rather than a later e
 
 # 146. Critical Privacy Requirement
 
-The application should never need to record the actual content of keyboard input.
+The application never observes keyboard input at all. Activity is inferred from
+the system idle counter, which reports only "seconds since the last input" and
+requires no permission.
 
-Use keyboard events only as signals that activity occurred.
-
-The system should store timestamps and activity metadata rather than keystroke contents.
+The system stores timestamps and derived durations rather than keystroke
+contents, and it installs no global key or mouse event monitor.
 
 ---
 

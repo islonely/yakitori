@@ -75,7 +75,6 @@ public final class TrackingEngine {
 
     // MARK: Monitors
     private let frontmostMonitor = FrontmostApplicationMonitor()
-    private let activityMonitor = ActivityMonitor()
     private let sleepMonitor = SystemSleepMonitor()
     private let timeChangeMonitor = TimeChangeMonitor()
 
@@ -109,11 +108,21 @@ public final class TrackingEngine {
     /// Called on the main queue after a session is recorded (used to refresh published stats).
     public var onSessionEnded: (() -> Void)?
 
-    private let wordCountSampleInterval: TimeInterval = 20
-    private let idleFallbackInterval: TimeInterval = 5
-    private let checkpointInterval: TimeInterval = 20
+    private let wordCountSampleInterval: TimeInterval = 30
+    /// How often the system idle counter is polled to detect activity. This
+    /// replaces per-keystroke event monitoring; activity resolution is bounded by
+    /// this interval.
+    private let activityPollInterval: TimeInterval = 2
+    /// A sample is only taken when no input has occurred for at least this long,
+    /// so we never query a writing app in the middle of typing.
+    private let wordCountPauseThreshold: TimeInterval = 2
+    private let checkpointInterval: TimeInterval = 30
     private let eventFlushInterval: TimeInterval = 5
     private var currentCalendar: CalendarContext
+
+    /// Cached "today" aggregate so activity ticks do not hit the database.
+    private var cachedTodayKey: String?
+    private var cachedTodayAggregate: DailyAggregate?
 
     // MARK: Init
 
@@ -173,7 +182,6 @@ public final class TrackingEngine {
                 checkpointOpenSessionLocked()
             }
             frontmostMonitor.stop()
-            activityMonitor.stop()
             sleepMonitor.stop()
             timeChangeMonitor.stop()
             stopTimers()
@@ -337,11 +345,6 @@ public final class TrackingEngine {
         }
         frontmostMonitor.start()
 
-        activityMonitor.onActivity = { [weak self] date, kind in
-            self?.queue.async { self?.handleActivityLocked(at: date, kind: kind, isPoll: false) }
-        }
-        activityMonitor.start()
-
         sleepMonitor.onWillSleep = { [weak self] date in
             self?.queue.async { self?.handleSleepLocked(at: date) }
         }
@@ -361,7 +364,7 @@ public final class TrackingEngine {
 
     private func startTimers() {
         let inactivity = DispatchSource.makeTimerSource(queue: queue)
-        inactivity.schedule(deadline: .now() + idleFallbackInterval, repeating: idleFallbackInterval, leeway: .seconds(1))
+        inactivity.schedule(deadline: .now() + activityPollInterval, repeating: activityPollInterval, leeway: .milliseconds(250))
         inactivity.setEventHandler { [weak self] in self?.tickLocked() }
         inactivity.resume()
         inactivityTimer = inactivity
@@ -436,17 +439,16 @@ public final class TrackingEngine {
                 dataChanged = true
             }
             let info = refreshDocumentLocked()
-            if sampleWordCountLocked(using: info) { dataChanged = true }
+            if sampleWordCountLocked(using: info, force: true) { dataChanged = true }
         }
 
         publishLocked(dataChanged: dataChanged)
     }
 
-    private func handleActivityLocked(at date: Date, kind: ActivityEventType, isPoll: Bool) {
+    /// Records activity detected via the system idle counter. No keyboard or
+    /// mouse events are observed, so no per-keystroke work happens anywhere.
+    private func handleActivityLocked(at date: Date) {
         lastActivityAt = date
-        if !isPoll {
-            recordEventLocked(type: kind, at: date)
-        }
         _ = stateMachine.handle(.activity(at: date))
         publishLocked(dataChanged: false)
     }
@@ -477,16 +479,18 @@ public final class TrackingEngine {
 
     private func tickLocked() {
         let now = dateProvider.now
-        // Fallback activity detection using the system idle counter. This keeps
-        // inactivity handling working when Accessibility is not granted.
+        // Activity is inferred from the system idle counter, polled on an
+        // interval. No global key or mouse monitor is installed.
         let idle = idleProvider.secondsSinceLastInput()
-        if idle < idleFallbackInterval {
+        if idle < activityPollInterval {
+            let activityDate = now.addingTimeInterval(-idle)
+            // Only forward when this is meaningfully newer than the last activity.
             if let last = lastActivityAt {
-                if now.timeIntervalSince(last) >= idleFallbackInterval {
-                    handleActivityLocked(at: now, kind: .keyboardActivity, isPoll: true)
+                if activityDate.timeIntervalSince(last) >= activityPollInterval {
+                    handleActivityLocked(at: activityDate)
                 }
             } else {
-                lastActivityAt = now
+                handleActivityLocked(at: activityDate)
             }
         }
 
@@ -588,8 +592,14 @@ public final class TrackingEngine {
     }
 
     @discardableResult
-    private func sampleWordCountLocked(using info: ActiveDocumentInfo? = nil) -> Bool {
+    private func sampleWordCountLocked(using info: ActiveDocumentInfo? = nil, force: Bool = false) -> Bool {
         guard stateMachine.isSessionOpen, let adapter = currentAdapter, adapter.capabilities.wordCount else { return false }
+        // Skip sampling while the writer is actively typing; only query the
+        // application during a natural pause (or when explicitly forced at a
+        // session boundary).
+        if !force, idleProvider.secondsSinceLastInput() < wordCountPauseThreshold {
+            return false
+        }
         let documentInfo: ActiveDocumentInfo?
         if let info {
             documentInfo = info
@@ -672,12 +682,17 @@ public final class TrackingEngine {
                 ))
             }
         }
+        cachedTodayKey = nil
     }
 
     private func snapshotLocked() -> TrackingSnapshot {
         let open = stateMachine.snapshotSession(at: dateProvider.now)
         let dayKey = currentCalendar.dayKey(for: dateProvider.now)
-        let today = (try? aggregateRepository.find(dayKey: dayKey))
+        if cachedTodayKey != dayKey {
+            cachedTodayKey = dayKey
+            cachedTodayAggregate = try? aggregateRepository.find(dayKey: dayKey)
+        }
+        let today = cachedTodayAggregate
         return TrackingSnapshot(
             state: stateMachine.state,
             isRunning: isRunning,
@@ -741,6 +756,7 @@ public final class TrackingEngine {
         let builder = DailyAggregateBuilder(calendar: currentCalendar)
         if let all = try? sessionRepository.all() {
             try? aggregateRepository.replaceAll(builder.aggregates(for: all))
+            cachedTodayKey = nil
         }
     }
 

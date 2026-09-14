@@ -103,12 +103,13 @@ final class MockScriptExecutor: ScriptExecuting {
 }
 
 final class PermissionDegradationTests: XCTestCase {
-    func testAccessibilityDeniedStillAllowsManualAndFocusTracking() throws {
+    func testWordAutomationDeniedStillAllowsManualAndFocusTracking() throws {
         let db = try TestSupport.makeDatabase()
-        let permissions = MockPermissionManager(states: [.accessibility: .denied])
-        XCTAssertEqual(permissions.status(for: .accessibility).state, .denied)
+        let permissions = MockPermissionManager(states: [.wordAutomation: .denied])
+        XCTAssertEqual(permissions.status(for: .wordAutomation).state, .denied)
 
-        // The engine can still be constructed and manual sessions do not require Accessibility.
+        // The engine can still be constructed and manual sessions never need a
+        // permission; activity uses the system idle counter.
         let engine = TrackingEngine(
             database: db,
             permissionProvider: permissions,
@@ -120,20 +121,20 @@ final class PermissionDegradationTests: XCTestCase {
         XCTAssertEqual(engine.snapshot().todayNetWords, 0)
     }
 
-    func testPermissionMatrixStatesAreRepresentable() {
+    func testOptionalPermissionStatesAreRepresentable() {
         let combinations: [(PermissionState, PermissionState)] = [
             (.granted, .granted), (.granted, .denied), (.denied, .granted), (.denied, .denied)
         ]
-        for (accessibility, automation) in combinations {
-            let manager = MockPermissionManager(states: [.accessibility: accessibility, .wordAutomation: automation])
-            XCTAssertEqual(manager.status(for: .accessibility).state, accessibility)
+        for (automation, notifications) in combinations {
+            let manager = MockPermissionManager(states: [.wordAutomation: automation, .notifications: notifications])
             XCTAssertEqual(manager.status(for: .wordAutomation).state, automation)
+            XCTAssertEqual(manager.status(for: .notifications).state, notifications)
         }
     }
 
     func testPermissionRequestsUpdateState() {
-        let manager = MockPermissionManager(states: [.accessibility: .denied])
-        manager.request(.accessibility)
-        XCTAssertEqual(manager.status(for: .accessibility).state, .granted)
+        let manager = MockPermissionManager(states: [.notifications: .denied])
+        manager.request(.notifications)
+        XCTAssertEqual(manager.status(for: .notifications).state, .granted)
     }
 }

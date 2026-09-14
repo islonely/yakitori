@@ -548,8 +548,14 @@ public final class StatisticsService {
 
     public func sessionPoints(filter: SessionFilter = SessionFilter()) -> [SessionPoint] {
         let sessions = (try? sessionRepository.sessions(filter: filter)) ?? []
-        let allSnapshots = (try? snapshotRepository.all()) ?? []
-        let byDocument = Dictionary(grouping: allSnapshots.compactMap { snapshot -> (String, WordCountSnapshot)? in
+        // Bound the snapshot load to the requested range instead of the whole table.
+        let snapshots: [WordCountSnapshot]
+        if let start = filter.startDate, let end = filter.endDate {
+            snapshots = (try? snapshotRepository.snapshots(in: DateInterval(start: start, end: end))) ?? []
+        } else {
+            snapshots = (try? snapshotRepository.all()) ?? []
+        }
+        let byDocument = Dictionary(grouping: snapshots.compactMap { snapshot -> (String, WordCountSnapshot)? in
             guard let id = snapshot.documentID else { return nil }
             return (id, snapshot)
         }, by: { $0.0 }).mapValues { $0.map(\.1).sorted { $0.timestamp < $1.timestamp } }
@@ -696,8 +702,8 @@ public final class StatisticsService {
 
     public func paceHistory(from start: Date, to end: Date) -> [PacePoint] {
         let sessions = (try? sessionRepository.sessions(in: DateInterval(start: start, end: end))) ?? []
-        let allSnapshots = (try? snapshotRepository.all()) ?? []
-        let byDocument = Dictionary(grouping: allSnapshots.compactMap { snapshot -> (String, WordCountSnapshot)? in
+        let snapshots = (try? snapshotRepository.snapshots(in: DateInterval(start: start, end: end))) ?? []
+        let byDocument = Dictionary(grouping: snapshots.compactMap { snapshot -> (String, WordCountSnapshot)? in
             guard let id = snapshot.documentID else { return nil }
             return (id, snapshot)
         }, by: { $0.0 }).mapValues { $0.map(\.1).sorted { $0.timestamp < $1.timestamp } }

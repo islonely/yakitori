@@ -136,6 +136,10 @@ final class AppState: ObservableObject {
         container.permissionProvider.openSystemSettings(for: kind)
     }
 
+    func openPrivacySettings() {
+        container.permissionProvider.openPrivacySettings()
+    }
+
     // MARK: - Settings
 
     func save(_ newSettings: UserSettings) {

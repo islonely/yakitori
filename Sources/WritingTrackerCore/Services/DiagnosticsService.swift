@@ -17,7 +17,6 @@ public struct DiagnosticReport: Codable, Sendable {
     public var openSessionCount: Int
     public var applicationCount: Int
     public var aggregateCount: Int
-    public var accessibilityTrusted: Bool
     public var wordInstalled: Bool
     public var wordRunning: Bool
     public var wordWordCountAvailable: Bool
@@ -69,7 +68,6 @@ public final class DiagnosticsService {
             openSessionCount: ((try? SessionRepository(database: database).openSessions()) ?? []).count,
             applicationCount: (try? WritingApplicationRepository(database: database).count()) ?? 0,
             aggregateCount: ((try? DailyAggregateRepository(database: database).all()) ?? []).count,
-            accessibilityTrusted: permissionProvider.status(for: .accessibility).state == .granted,
             wordInstalled: ApplicationLocator.isInstalled(bundleIdentifier: "com.microsoft.Word"),
             wordRunning: ApplicationLocator.isRunning(bundleIdentifier: "com.microsoft.Word"),
             wordWordCountAvailable: wordWordCount,

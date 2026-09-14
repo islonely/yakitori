@@ -1,7 +1,6 @@
 import Foundation
 import AppKit
 import CoreGraphics
-import ApplicationServices
 
 /// Observes the globally frontmost application.
 public final class FrontmostApplicationMonitor {
@@ -50,63 +49,8 @@ public final class FrontmostApplicationMonitor {
     }
 }
 
-/// Listens for global input as a generic activity signal. Never records keys.
-public final class ActivityMonitor {
-    /// Called at most once per second while the user is active.
-    public var onActivity: ((Date, ActivityEventType) -> Void)?
-    private var globalMonitor: Any?
-    private var localMonitor: Any?
-    private var lastEmission: Date = .distantPast
-    private let minimumInterval: TimeInterval
-    private var isRunning = false
-
-    public init(minimumInterval: TimeInterval = 1.0) {
-        self.minimumInterval = minimumInterval
-    }
-
-    /// True when the process can receive global key events (Accessibility).
-    public var hasGlobalKeyAccess: Bool { AXIsProcessTrusted() }
-
-    public func start() {
-        guard !isRunning else { return }
-        isRunning = true
-        // Listen-only monitors: the event contents are never read.
-        let mask: NSEvent.EventTypeMask = [.keyDown, .flagsChanged, .leftMouseDown, .rightMouseDown, .otherMouseDown, .scrollWheel]
-        globalMonitor = NSEvent.addGlobalMonitorForEvents(matching: mask) { [weak self] event in
-            self?.emit(kind: Self.kind(for: event))
-        }
-        localMonitor = NSEvent.addLocalMonitorForEvents(matching: mask) { [weak self] event in
-            self?.emit(kind: Self.kind(for: event))
-            return event
-        }
-    }
-
-    public func stop() {
-        if let globalMonitor { NSEvent.removeMonitor(globalMonitor) }
-        if let localMonitor { NSEvent.removeMonitor(localMonitor) }
-        globalMonitor = nil
-        localMonitor = nil
-        isRunning = false
-    }
-
-    private static func kind(for event: NSEvent) -> ActivityEventType {
-        switch event.type {
-        case .keyDown, .flagsChanged: return .keyboardActivity
-        default: return .mouseActivity
-        }
-    }
-
-    private func emit(kind: ActivityEventType) {
-        let now = Date()
-        guard now.timeIntervalSince(lastEmission) >= minimumInterval else { return }
-        lastEmission = now
-        onActivity?(now, kind)
-    }
-}
-
 /// Inactivity signal provider based on CoreGraphics' system idle counter.
-/// Works even when Accessibility is unavailable, so inactivity detection
-/// degrades gracefully instead of failing.
+/// Works without any permission, including Accessibility.
 public protocol SystemIdleProviding {
     /// Seconds since the last user input event.
     func secondsSinceLastInput() -> TimeInterval

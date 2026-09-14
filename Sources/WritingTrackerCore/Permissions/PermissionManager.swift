@@ -1,6 +1,5 @@
 import Foundation
 import AppKit
-import ApplicationServices
 import UserNotifications
 import ServiceManagement
 
@@ -29,10 +28,12 @@ public struct PermissionRequirement: Identifiable, Hashable, Sendable {
         self.degradedExplanation = degradedExplanation
     }
 
+    /// Activity is inferred from the system idle counter, which needs no
+    /// permission, so this capability has no permission requirement.
     public static let automaticActivityTracking = PermissionRequirement(
         capability: "Automatic activity tracking",
-        required: [.accessibility],
-        degradedExplanation: "Without Accessibility, the tracker cannot detect keyboard activity and will only record focus time."
+        required: [],
+        degradedExplanation: "Activity tracking requires no permission; it uses the system idle counter."
     )
 
     public static let wordWordCount = PermissionRequirement(
@@ -66,6 +67,7 @@ public protocol PermissionProviding: AnyObject {
     func allStatuses() -> [PermissionStatus]
     func request(_ kind: PermissionKind)
     func openSystemSettings(for kind: PermissionKind)
+    func openPrivacySettings()
     func setLaunchAtLogin(_ enabled: Bool)
     func refresh()
 }
@@ -98,16 +100,9 @@ public final class PermissionManager: PermissionProviding {
 
     public func status(for kind: PermissionKind) -> PermissionStatus {
         switch kind {
-        case .accessibility:
-            let trusted = AXIsProcessTrusted()
-            return PermissionStatus(
-                kind: kind,
-                state: trusted ? .granted : .denied,
-                detail: trusted ? nil : "Keyboard activity detection is limited."
-            )
         case .wordAutomation:
             return PermissionStatus(kind: kind, state: wordAutomationState,
-                                    detail: wordAutomationState == .denied ? "Microsoft Word word counts unavailable." : nil)
+                                    detail: wordAutomationState == .denied ? "Document word counts unavailable." : nil)
         case .fileAccess:
             return PermissionStatus(kind: kind, state: fileAccessState,
                                     detail: fileAccessState == .notApplicable ? "No file or folder selected yet." : nil)
@@ -120,9 +115,6 @@ public final class PermissionManager: PermissionProviding {
 
     public func request(_ kind: PermissionKind) {
         switch kind {
-        case .accessibility:
-            let options = [kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: true] as CFDictionary
-            _ = AXIsProcessTrustedWithOptions(options)
         case .wordAutomation:
             requestWordAutomation()
         case .fileAccess:
@@ -202,8 +194,6 @@ public final class PermissionManager: PermissionProviding {
     public func openSystemSettings(for kind: PermissionKind) {
         let urlString: String?
         switch kind {
-        case .accessibility:
-            urlString = "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility"
         case .wordAutomation:
             urlString = "x-apple.systempreferences:com.apple.preference.security?Privacy_Automation"
         case .fileAccess:
@@ -214,6 +204,11 @@ public final class PermissionManager: PermissionProviding {
             urlString = "x-apple.systempreferences:com.apple.LoginItems-Settings.extension"
         }
         guard let urlString, let url = URL(string: urlString) else { return }
+        NSWorkspace.shared.open(url)
+    }
+
+    public func openPrivacySettings() {
+        guard let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy") else { return }
         NSWorkspace.shared.open(url)
     }
 
@@ -268,6 +263,7 @@ public final class MockPermissionManager: PermissionProviding {
     }
 
     public func openSystemSettings(for kind: PermissionKind) {}
+    public func openPrivacySettings() {}
     public func setLaunchAtLogin(_ enabled: Bool) {}
     public func refresh() {}
 }

@@ -319,7 +319,6 @@ public enum AdapterType: String, Codable, CaseIterable, Identifiable, Sendable {
 // MARK: - Permissions
 
 public enum PermissionKind: String, Codable, CaseIterable, Identifiable, Sendable {
-    case accessibility
     case wordAutomation
     case fileAccess
     case notifications
@@ -329,7 +328,6 @@ public enum PermissionKind: String, Codable, CaseIterable, Identifiable, Sendabl
 
     public var displayName: String {
         switch self {
-        case .accessibility: return "Accessibility"
         case .wordAutomation: return "Document Automation (Word, Pages)"
         case .fileAccess: return "Selected File Access"
         case .notifications: return "Notifications"

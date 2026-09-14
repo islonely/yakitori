@@ -5,11 +5,12 @@ import Foundation
 /// Verified against Word for Mac 16.111 using AppleScript:
 /// - `name of active document`
 /// - `full name of active document` (POSIX path or OneDrive URL)
-/// - `compute statistics active document statistic statistic words|characters|pages`
+/// - `compute statistics active document statistic statistic words|characters`
 ///
-/// Word is never launched by the adapter: the running-application check happens
-/// first, and automation errors (including permission denial -1743) degrade
-/// gracefully rather than being reported as real word counts.
+/// Pages are intentionally not queried: computing them can force Word to
+/// repaginate, which is expensive and unnecessary for tracking. Word is never
+/// launched by the adapter, and automation errors (including permission denial
+/// -1743) degrade gracefully rather than being reported as real word counts.
 public final class WordAdapter: AppleScriptAdapter {
     public init(bundleIdentifier: String = "com.microsoft.Word", executor: ScriptExecuting = AppleScriptExecutor()) {
         super.init(
@@ -26,11 +27,9 @@ public final class WordAdapter: AppleScriptAdapter {
         set d to active document
         set dName to name of d
         set dPath to full name of d
-        set isSaved to saved of d
         set wc to compute statistics d statistic statistic words
         set cc to compute statistics d statistic statistic characters
-        set pc to compute statistics d statistic statistic pages
-        return dName & "|||" & dPath & "|||" & (wc as string) & "|||" & (cc as string) & "|||" & (pc as string) & "|||" & (isSaved as string)
+        return dName & "|||" & dPath & "|||" & (wc as string) & "|||" & (cc as string)
     end tell
     """
 

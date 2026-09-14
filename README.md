@@ -67,10 +67,12 @@ Any other application can still be added and tracked for time and focus.
   Tracking).
 - **Session state machine** (`IDLE → FOCUSED → ACTIVE → PAUSED → ACTIVE → ENDED`)
   with pause/resume, inactivity timeout, sleep/wake handling and crash recovery.
-- **Frontmost application detection** and **listen-only activity monitoring**
-  (keyboard/mouse signals only — never key contents).
+- **Frontmost application detection** and **activity detection via the system
+  idle counter** (no keyboard or mouse events are observed at all, and no
+  permission is needed).
 - **Word & Pages adapters** using AppleScript (verified against Word for Mac 16.x
-  and Pages on macOS 26) for active document, path and exact word count.
+  and Pages on macOS 26) for active document, path and exact word count. Word
+  counts are sampled only during a pause in typing, never mid-keystroke.
 - **Adapter architecture** (`WritingApplicationAdapter`) so new integrations can be
   added without touching the tracking engine.
 - **Local-first SQLite persistence** behind a `Database` abstraction and
@@ -149,20 +151,23 @@ Nothing is bypassed, and every feature degrades gracefully.
 
 | Capability | Permission | If denied |
 |---|---|---|
-| Keyboard activity detection | Accessibility | Focus/active timing still works from the frontmost app and the system idle counter; manual sessions still work |
+| Activity + focus tracking | **None** | Works without any permission; activity is inferred from the system idle counter |
 | Word/Pages document + word count | Automation (Apple Events) | Sessions and focus/activity still work; document word counts are unavailable |
 | Specific file/folder access | Files & Folders (via `NSOpenPanel`) | Only that specific feature is disabled |
 | Notifications | Notifications | Requested only when you enable notifications |
 | Launch at Login | Login Items (`SMAppService`) | Start the app manually |
 
-Full Disk Access, Screen Recording, Camera, Microphone and Location are **never**
-requested.
+**Accessibility is never requested.** The app does not observe keyboard or mouse
+events; it polls the system idle counter, which needs no permission.
+
+Full Disk Access, Screen Recording, Camera, Microphone, Location, and
+Accessibility are **never** requested.
 
 ### Notes on development builds
 
 The bundle is ad-hoc signed by `Scripts/build-app.sh`. Rebuilding changes the
-signature, so macOS may ask you to re-grant Accessibility/Automation permission
-after a rebuild. This is expected during development.
+signature, so macOS may ask you to re-grant Automation permission after a
+rebuild. This is expected during development.
 
 ---
 
@@ -240,6 +245,12 @@ export, backup, and destructive-operation safety.
   when the dashboard is closed) rather than as a separate XPC/LaunchAgent.
   The engine is GUI-independent and the boundary would allow extracting it later.
 - Automatic project inference is rule-based as documented; no ML inference.
+- **Activity is inferred from the system idle counter** polled every couple of
+  seconds, so active-time granularity is a few seconds. No keyboard or mouse
+  events are observed.
+- **Word counts are sampled during pauses** (or at session boundaries), not while
+  you type, so a writing app is never interrupted mid-keystroke. An ending count
+  is captured at the pause before a session ends.
 - **Typing pace (WPM) is derived** from growth in a document's character count
   (5 characters = 1 word). Deletions and modifier keys add nothing, but pasted
   text counts, and it only exists for Word/Pages sessions where character counts
