@@ -104,9 +104,11 @@ public final class AccountService: @unchecked Sendable {
             switch error.code {
             case "authorization_pending":
                 return .pending
-            case "slow_down":
+            case "slow_down", "rate_limited":
                 return .slowDown
             default:
+                // A 429 without a structured code still means "back off".
+                if error.statusCode == 429 { return .slowDown }
                 throw error
             }
         }

@@ -13,7 +13,7 @@ from .models import ApiToken, LoginChallenge, User
 
 
 @override_settings(
-    EMAIL_PROVIDER="smtp",
+    EMAIL_PROVIDER="console",
     EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend",
 )
 class PasswordlessLoginTests(TestCase):
@@ -115,6 +115,23 @@ class PasswordlessLoginTests(TestCase):
         response = self.client.get(f"/sign-in/{token}/")
         self.assertEqual(response.status_code, 400)
 
+    def test_sign_up_throttle_shows_an_error(self):
+        with override_settings(
+            RATE_LIMIT_DEFAULTS={"login-request": (1, 3600)}
+        ):
+            first = self.client.post(
+                "/sign-up/",
+                {"email": "once@example.com", "accepted_terms": "on"},
+            )
+            self.assertEqual(first.status_code, 302)
+
+            second = self.client.post(
+                "/sign-up/",
+                {"email": "once@example.com", "accepted_terms": "on"},
+            )
+            self.assertEqual(second.status_code, 200)
+            self.assertContains(second, "Too many attempts")
+
     def test_rate_limit_records_attempts(self):
         for _ in range(5):
             self.assertTrue(check(None, "login-request", scope="ip:1.2.3.4"))
@@ -185,6 +202,20 @@ class DeviceAuthorizationTests(TestCase):
         )
         self.assertEqual(response.status_code, 400)
         self.assertEqual(response.json()["error"]["code"], "authorization_pending")
+
+    def test_polling_is_not_rate_limited_per_ip(self):
+        start = self._start()
+        # A client polls once per interval; a burst must not be throttled.
+        for _ in range(20):
+            response = self.client.post(
+                "/v1/auth/device/token",
+                data=json.dumps({"device_code": start["device_code"]}),
+                content_type="application/json",
+            )
+            self.assertEqual(response.status_code, 400)
+            self.assertEqual(
+                response.json()["error"]["code"], "authorization_pending"
+            )
 
     def test_denied_device_cannot_be_exchanged(self):
         start = self._start()

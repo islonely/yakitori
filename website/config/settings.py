@@ -298,6 +298,9 @@ LEADERBOARD_PAGE_SIZE = _env_int("LEADERBOARD_PAGE_SIZE", 100)
 RATE_LIMIT_DEFAULTS = {
     "login-request": (_env_int("RL_LOGIN_REQUEST", 8), 15 * 60),
     "login-verify": (_env_int("RL_LOGIN_VERIFY", 12), 15 * 60),
+    # Device authorization polling is frequent by design (one request per
+    # interval), so it is capped per device code over the code's lifetime.
+    "device-poll": (_env_int("RL_DEVICE_POLL", 600), 15 * 60),
     "username-change": (_env_int("RL_USERNAME_CHANGE", 5), 24 * 60 * 60),
     "username-search": (_env_int("RL_USERNAME_SEARCH", 120), 60 * 60),
     "follow": (_env_int("RL_FOLLOW", 300), 60 * 60),

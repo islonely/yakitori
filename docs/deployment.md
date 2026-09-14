@@ -173,9 +173,39 @@ Local development uses the mock provider and takes no real payment.
 
 ## 9. Email
 
-Set `EMAIL_PROVIDER` to a hosted provider (`resend`, or `smtp` with
-`EMAIL_HOST`/credentials). The console provider refuses to run when `DEBUG` is
-false. Verify the sending domain (SPF/DKIM) before launch.
+In development the default is `EMAIL_PROVIDER=console`, which **prints the email
+to the server terminal** instead of delivering it — so there is nothing in your
+inbox until you configure a provider. Verify any configuration with:
+
+```bash
+cd website
+.venv/bin/python manage.py send_test_email you@example.com
+```
+
+Choose one:
+
+- **Resend** (easiest real delivery; free tier):
+  `EMAIL_PROVIDER=resend`, `EMAIL_PROVIDER_API_KEY=re_...`,
+  `EMAIL_FROM=Yakitori <onboarding@resend.dev>` (test mode only sends to your
+  own address). After verifying a domain, use
+  `EMAIL_FROM=Yakitori <noreply@yourdomain>`.
+- **SMTP** (Gmail app password, Postmark, SES, …): `EMAIL_PROVIDER=smtp` plus
+  `EMAIL_HOST`, `EMAIL_PORT`, `EMAIL_USE_TLS`, `EMAIL_HOST_USER`,
+  `EMAIL_HOST_PASSWORD`, and `EMAIL_FROM`. Selecting `smtp` always sends over
+  SMTP; it does not depend on `EMAIL_BACKEND`.
+
+The console provider refuses to run when `DEBUG` is false, so production cannot
+silently drop mail. Verify the sending domain (SPF/DKIM) before launch.
+
+### Why a sign-up might show "check your email" with no email
+
+Two intentional behaviours can look like this:
+
+1. **Console provider in development.** The link/code is in the terminal, not
+   your inbox. Configure a provider as above.
+2. **Rate limiting.** Sign-up/sign-in requests are limited per IP and per
+   address. When the limit is hit the form now shows "Too many attempts" rather
+   than pretending an email was sent. Wait a few minutes and retry.
 
 ## 10. Backups
 

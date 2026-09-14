@@ -11,7 +11,7 @@ import urllib.error
 import urllib.request
 
 from django.conf import settings
-from django.core.mail import send_mail
+from django.core.mail import EmailMultiAlternatives, get_connection, send_mail
 
 logger = logging.getLogger(__name__)
 
@@ -36,17 +36,39 @@ class ConsoleEmailProvider(EmailProvider):
 
 
 class SMTPEmailProvider(EmailProvider):
-    """Hosted SMTP transport configured through EMAIL_* settings."""
+    """Hosted SMTP transport configured through EMAIL_* settings.
+
+    Builds its own SMTP connection rather than relying on `EMAIL_BACKEND`, so
+    selecting `EMAIL_PROVIDER=smtp` always actually sends (a common
+    misconfiguration is leaving `EMAIL_BACKEND` at the console backend).
+    """
 
     def send(self, *, to, subject, body, html=None):
-        send_mail(
+        if not settings.EMAIL_HOST:
+            raise RuntimeError(
+                "EMAIL_PROVIDER=smtp requires EMAIL_HOST (and usually "
+                "EMAIL_HOST_USER / EMAIL_HOST_PASSWORD)."
+            )
+
+        connection = get_connection(
+            backend="django.core.mail.backends.smtp.EmailBackend",
+            host=settings.EMAIL_HOST,
+            port=settings.EMAIL_PORT,
+            username=settings.EMAIL_HOST_USER or None,
+            password=settings.EMAIL_HOST_PASSWORD or None,
+            use_tls=settings.EMAIL_USE_TLS,
+            timeout=settings.EMAIL_TIMEOUT,
+        )
+        message = EmailMultiAlternatives(
             subject,
             body,
             settings.DEFAULT_FROM_EMAIL,
             [to],
-            html_message=html,
-            fail_silently=False,
+            connection=connection,
         )
+        if html:
+            message.attach_alternative(html, "text/html")
+        message.send(fail_silently=False)
 
 
 class ResendEmailProvider(EmailProvider):
@@ -87,21 +109,24 @@ class ResendEmailProvider(EmailProvider):
 
 
 def get_email_provider():
-    name = (settings.EMAIL_PROVIDER or "console").lower()
+    """Return the configured provider.
 
-    if name == "console":
-        if not settings.DEBUG:
-            logger.error(
-                "EMAIL_PROVIDER=console is not allowed in production; "
-                "falling back to SMTP"
-            )
-            return SMTPEmailProvider()
-        return ConsoleEmailProvider()
+    - ``console`` uses Django's configured ``EMAIL_BACKEND`` (the console
+      backend in development, or an alternate backend such as the in-memory one
+      in tests).
+    - ``smtp`` always sends over SMTP using the ``EMAIL_*`` settings.
+    - ``resend`` posts to the Resend HTTP API.
+
+    `accounts.checks` fails `manage.py check --deploy` when the console provider
+    is selected in production, so mail cannot be silently dropped there.
+    """
+    name = (settings.EMAIL_PROVIDER or "console").lower()
 
     if name == "resend":
         return ResendEmailProvider()
-
-    return SMTPEmailProvider()
+    if name == "smtp":
+        return SMTPEmailProvider()
+    return ConsoleEmailProvider()
 
 
 def send_email(*, to, subject, body, html=None):

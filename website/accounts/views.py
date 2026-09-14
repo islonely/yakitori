@@ -39,7 +39,10 @@ def sign_in(request):
             )
             if allowed:
                 services.request_login(email, request_ip=client_ip(request))
-            return redirect("accounts:sign-in-sent")
+                return redirect("accounts:sign-in-sent")
+            error = (
+                "Too many attempts. Please wait a few minutes and try again."
+            )
 
     return render(request, "accounts/sign_in.html", {"error": error})
 
@@ -67,7 +70,10 @@ def sign_up(request):
             )
             if allowed:
                 services.request_login(email, request_ip=client_ip(request))
-            return redirect("accounts:sign-up-sent")
+                return redirect("accounts:sign-up-sent")
+            error = (
+                "Too many attempts. Please wait a few minutes and try again."
+            )
 
     return render(request, "accounts/sign_up.html", {"error": error})
 

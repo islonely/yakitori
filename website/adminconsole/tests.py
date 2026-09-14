@@ -221,7 +221,7 @@ class SecurityHardeningTests(TestCase):
 
         with override_settings(
             RATE_LIMIT_DEFAULTS={"login-request": (3, 3600)},
-            EMAIL_PROVIDER="smtp",
+            EMAIL_PROVIDER="console",
             EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend",
         ):
             for index in range(6):

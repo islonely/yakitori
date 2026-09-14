@@ -2,6 +2,7 @@ from django.conf import settings
 
 from common.jsonapi import ApiError, api_endpoint, json_body, json_response
 from common.ratelimit import enforce
+from common.text import sha256_hex
 
 from . import services
 from .auth import api_login_required
@@ -59,10 +60,20 @@ def device_start(request):
 
 @api_endpoint(["POST"])
 def device_token(request):
-    enforce(request, "login-verify")
     body = json_body(request)
+    device_code = body.get("device_code", "")
+
+    # The app polls this endpoint on its own interval, so it is limited per
+    # device code (not per IP) with a cap that comfortably covers the code's
+    # lifetime. Over-limit callers get a structured 429 the client backs off on.
+    enforce(
+        request,
+        "device-poll",
+        scope=f"device:{sha256_hex(device_code)}",
+    )
+
     plaintext, error = services.exchange_device_code(
-        body.get("device_code", ""),
+        device_code,
         label=body.get("client_name", ""),
     )
 

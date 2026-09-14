@@ -224,7 +224,7 @@ final class AppState: ObservableObject {
         devicePollingTask?.cancel()
         devicePollingTask = Task { [weak self] in
             guard let self else { return }
-            let interval = max(1, authorization.interval)
+            var interval = max(1, authorization.interval)
 
             while !Task.isCancelled {
                 try? await Task.sleep(nanoseconds: UInt64(interval) * 1_000_000_000)
@@ -233,7 +233,11 @@ final class AppState: ObservableObject {
                 do {
                     let result = try await self.container.account.pollForToken(authorization)
                     switch result {
-                    case .pending, .slowDown:
+                    case .pending:
+                        continue
+                    case .slowDown:
+                        // Back off when the server asks us to (rate limit).
+                        interval = min(interval + 5, 30)
                         continue
                     case .authorized(let token):
                         try await self.container.account.completeSignIn(token: token.token)
