@@ -41,7 +41,19 @@ struct AchievementsView: View {
             }
             Text(achievement.title).font(.headline)
             Text(achievement.detail).font(.caption).foregroundStyle(.secondary)
+            HStack(alignment: .firstTextBaseline) {
+                Text(achievement.progressText)
+                    .font(.system(.callout, design: .rounded).weight(.medium))
+                    .monospacedDigit()
+                Spacer()
+                Text(Format.percent(achievement.progress))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
             ProgressView(value: achievement.progress)
+            if let remaining = achievement.remainingText {
+                Text(remaining).font(.caption2).foregroundStyle(.secondary)
+            }
         }
         .cardStyle()
         .opacity(achievement.isUnlocked ? 1 : 0.75)

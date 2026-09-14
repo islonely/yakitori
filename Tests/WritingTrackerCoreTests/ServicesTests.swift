@@ -318,6 +318,14 @@ final class ReportServiceTests: XCTestCase {
         XCTAssertEqual(achievements.count, 8)
         XCTAssertTrue(achievements.first(where: { $0.id == "first1k" })?.isUnlocked ?? false)
 
+        // Numeric progress is exposed, not just a fraction.
+        let million = achievements.first { $0.id == "1m" }
+        XCTAssertEqual(million?.currentText, "1,500")
+        XCTAssertEqual(million?.targetText, "1,000,000")
+        XCTAssertEqual(million?.progressText, "1,500 / 1,000,000 words")
+        XCTAssertFalse(million?.isUnlocked ?? true)
+        XCTAssertNotNil(million?.remainingText)
+
         let yearly = service.yearlyReport(year: 2026)
         XCTAssertEqual(yearly.period.netWords, 1500)
         let review = service.yearInReview(year: 2026)

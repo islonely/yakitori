@@ -9,13 +9,51 @@ public struct WritingReport: Identifiable, Hashable, Sendable {
     public var generatedAt: Date
 }
 
+public enum AchievementUnit: String, Codable, Sendable {
+    case words
+    case days
+    case sessions
+    case projects
+
+    public var displayName: String {
+        switch self {
+        case .words: return "words"
+        case .days: return "days"
+        case .sessions: return "sessions"
+        case .projects: return "projects"
+        }
+    }
+}
+
 public struct Achievement: Identifiable, Hashable, Sendable {
     public let id: String
     public let title: String
     public let detail: String
     public let isUnlocked: Bool
-    public let progress: Double
+    public let currentValue: Double
+    public let threshold: Double
+    public let unit: AchievementUnit
     public let symbol: String
+
+    public var progress: Double {
+        threshold > 0 ? min(1, max(0, currentValue / threshold)) : 0
+    }
+
+    /// Grouped current value, e.g. "34,735".
+    public var currentText: String { Self.format(currentValue) }
+    /// Grouped target value, e.g. "1,000,000".
+    public var targetText: String { Self.format(threshold) }
+    /// Numeric progress, e.g. "34,735 / 1,000,000 words".
+    public var progressText: String { "\(currentText) / \(targetText) \(unit.displayName)" }
+    /// Remaining amount, when the achievement is not yet unlocked.
+    public var remainingText: String? {
+        guard !isUnlocked, threshold > currentValue else { return nil }
+        return "\(Self.format(threshold - currentValue)) \(unit.displayName) to go"
+    }
+
+    private static func format(_ value: Double) -> String {
+        Int(value.rounded()).formatted(.number.grouping(.automatic))
+    }
 }
 
 public struct StatComparison: Identifiable, Hashable, Sendable {
@@ -115,31 +153,33 @@ public final class ReportService {
 
     public func achievements() -> [Achievement] {
         let lifetime = statistics.lifetimeStatistics()
-        func achievement(id: String, title: String, detail: String, value: Double, threshold: Double, symbol: String) -> Achievement {
+        func achievement(id: String, title: String, detail: String, value: Double, threshold: Double, unit: AchievementUnit, symbol: String) -> Achievement {
             Achievement(
                 id: id, title: title, detail: detail,
                 isUnlocked: value >= threshold,
-                progress: threshold > 0 ? min(1, value / threshold) : 0,
+                currentValue: value,
+                threshold: threshold,
+                unit: unit,
                 symbol: symbol
             )
         }
         return [
             achievement(id: "first1k", title: "First 1,000 words", detail: "Write your first thousand words",
-                        value: Double(lifetime.lifetimeNetWords), threshold: 1_000, symbol: "text.book.closed"),
+                        value: Double(lifetime.lifetimeNetWords), threshold: 1_000, unit: .words, symbol: "text.book.closed"),
             achievement(id: "10k", title: "10,000 words", detail: "Reach 10,000 lifetime words",
-                        value: Double(lifetime.lifetimeNetWords), threshold: 10_000, symbol: "books.vertical"),
+                        value: Double(lifetime.lifetimeNetWords), threshold: 10_000, unit: .words, symbol: "books.vertical"),
             achievement(id: "100k", title: "100,000 words", detail: "Reach 100,000 lifetime words",
-                        value: Double(lifetime.lifetimeNetWords), threshold: 100_000, symbol: "book"),
+                        value: Double(lifetime.lifetimeNetWords), threshold: 100_000, unit: .words, symbol: "book"),
             achievement(id: "1m", title: "One million words", detail: "Reach one million lifetime words",
-                        value: Double(lifetime.lifetimeNetWords), threshold: 1_000_000, symbol: "star"),
+                        value: Double(lifetime.lifetimeNetWords), threshold: 1_000_000, unit: .words, symbol: "star"),
             achievement(id: "days100", title: "100 writing days", detail: "Write on 100 days",
-                        value: Double(lifetime.writingDays), threshold: 100, symbol: "calendar"),
+                        value: Double(lifetime.writingDays), threshold: 100, unit: .days, symbol: "calendar"),
             achievement(id: "sessions100", title: "100 sessions", detail: "Complete 100 writing sessions",
-                        value: Double(lifetime.totalSessions), threshold: 100, symbol: "clock"),
+                        value: Double(lifetime.totalSessions), threshold: 100, unit: .sessions, symbol: "clock"),
             achievement(id: "streak30", title: "30-day streak", detail: "Write for 30 consecutive days",
-                        value: Double(lifetime.longestStreak), threshold: 30, symbol: "flame"),
+                        value: Double(lifetime.longestStreak), threshold: 30, unit: .days, symbol: "flame"),
             achievement(id: "project1", title: "First completed project", detail: "Mark a project complete",
-                        value: Double(lifetime.completedProjects), threshold: 1, symbol: "checkmark.seal")
+                        value: Double(lifetime.completedProjects), threshold: 1, unit: .projects, symbol: "checkmark.seal")
         ]
     }
 
