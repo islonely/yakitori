@@ -1,0 +1,16 @@
+{% if profile.user != user %}
+    <form
+        method="post"
+        action="{% url 'social:follow-toggle' profile.username %}"
+        hx-post="{% url 'social:follow-toggle' profile.username %}"
+        hx-swap="outerHTML"
+    >
+        {% csrf_token %}
+        {% if following %}
+            <button type="submit" class="button button-ghost">Following</button>
+        {% else %}
+            <button type="submit" class="button">Follow</button>
+        {% endif %}
+        {% if error %}<span class="fine-print">{{ error }}</span>{% endif %}
+    </form>
+{% endif %}

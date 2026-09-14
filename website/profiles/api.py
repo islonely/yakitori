@@ -1,6 +1,7 @@
 from accounts.auth import api_login_required, resolve_user
 from common.jsonapi import ApiError, api_endpoint, json_body, json_response
 from common.ratelimit import enforce
+from social.services import can_view_profile
 
 from .models import Profile
 from .serializers import own_profile, public_profile
@@ -11,14 +12,6 @@ from .services import (
     update_privacy,
     update_profile,
 )
-
-
-def can_view_profile(profile, viewer):
-    if profile.is_public:
-        return True
-    if viewer is not None and getattr(viewer, "is_authenticated", False):
-        return viewer.pk == profile.user_id
-    return False
 
 
 def _get_profile_or_404(username):
@@ -40,7 +33,7 @@ def user_detail(request, username):
     if not can_view_profile(profile, viewer):
         # Private profiles are indistinguishable from missing ones.
         raise ApiError(404, "not_found", "No such user.")
-    return json_response({"profile": public_profile(profile)})
+    return json_response({"profile": public_profile(profile, viewer)})
 
 
 @api_endpoint(["GET", "PATCH"])

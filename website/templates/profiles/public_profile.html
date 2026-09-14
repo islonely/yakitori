@@ -18,12 +18,26 @@
 
     {% if profile.bio %}<p class="lede">{{ profile.bio }}</p>{% endif %}
 
-    {% if is_owner %}
-        <p><a class="button button-small" href="{% url 'profiles:edit' %}">Edit profile</a></p>
-    {% endif %}
+    <p class="profile-stats">
+        {% if profile.profile_visibility == "private" %}
+            <a href="{% url 'social:followers' profile.username %}">{{ followers }} followers</a>
+            <a href="{% url 'social:following' profile.username %}">{{ following }} following</a>
+        {% else %}
+            <a href="{% url 'social:followers' profile.username %}">{{ followers }} followers</a>
+            <a href="{% url 'social:following' profile.username %}">{{ following }} following</a>
+        {% endif %}
+    </p>
+
+    <p class="cta-row">
+        {% if is_owner %}
+            <a class="button button-small" href="{% url 'profiles:edit' %}">Edit profile</a>
+        {% else %}
+            {% include "profiles/_follow_button.html" with following=viewer_following %}
+        {% endif %}
+    </p>
 
     {% if profile.profile_visibility == "private" %}
-        <div class="note"><p>This profile is private.</p></div>
+        <div class="note"><p>This profile is private. Only followers can see it.</p></div>
     {% endif %}
 </section>
 {% endblock %}

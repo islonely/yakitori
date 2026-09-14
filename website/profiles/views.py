@@ -4,7 +4,8 @@ from django.http import Http404
 from django.shortcuts import redirect, render
 from django.views.decorators.http import require_http_methods
 
-from .api import can_view_profile
+from social.services import can_view_profile, counts, is_following
+
 from .models import Profile
 from .services import (
     UsernameError,
@@ -26,10 +27,17 @@ def public_profile(request, username):
     if profile is None or not can_view_profile(profile, request.user):
         raise Http404("No such user.")
 
+    followers, following = counts(profile.user)
     return render(
         request,
         "profiles/public_profile.html",
-        {"profile": profile, "is_owner": request.user == profile.user},
+        {
+            "profile": profile,
+            "is_owner": request.user == profile.user,
+            "followers": followers,
+            "following": following,
+            "viewer_following": is_following(request.user, profile.user),
+        },
     )
 
 

@@ -186,6 +186,13 @@ textarea { min-height: 120px; resize: vertical; }
     font-weight: 700;
 }
 
+.avatar-small { width: 36px; height: 36px; font-size: 1rem; }
+.profile-stats { display: flex; gap: 18px; color: var(--muted); }
+.member-list { list-style: none; padding: 0; display: grid; gap: 8px; }
+.member-list a { display: flex; align-items: center; gap: 12px; color: var(--text); }
+.member-list a:hover { text-decoration: none; background: var(--panel); border-radius: var(--radius); }
+.member-list .handle { display: block; color: var(--muted); font-size: 0.9rem; }
+
 @media (max-width: 720px) {
     .account-layout { grid-template-columns: 1fr; gap: 20px; }
     .account-nav { flex-direction: row; flex-wrap: wrap; }
