@@ -278,6 +278,10 @@ LICENSE_VERIFICATION_PUBLIC_KEYS = _env("LICENSE_VERIFICATION_PUBLIC_KEYS", "")
 # Offline behavior. A server outage must never lock a legitimate customer out.
 LICENSE_OFFLINE_GRACE_DAYS = _env_int("LICENSE_OFFLINE_GRACE_DAYS", 30)
 
+# Free trial. The trial requires an account so it cannot be restarted, and it
+# is refused if the same installation has already consumed one.
+TRIAL_DAYS = _env_int("TRIAL_DAYS", 14)
+
 
 # ---------------------------------------------------------------------------
 # Social / leaderboards

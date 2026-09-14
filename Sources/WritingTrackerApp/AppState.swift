@@ -129,12 +129,45 @@ final class AppState: ObservableObject {
             Task { @MainActor in self?.handleAccountState(state) }
         }
         container.licensing.onStateChange = { [weak self] state in
-            Task { @MainActor in self?.licensingState = state }
+            Task { @MainActor in
+                self?.licensingState = state
+                self?.applyEntitlement(state)
+            }
         }
         accountState = container.account.state
+        // Until a license or trial is confirmed, recording stays off. The
+        // engine keeps running so existing data stays viewable.
+        applyEntitlement(container.licensing.state)
 
-        // Restore a stored session in the background; tracking is unaffected.
+        // Restore a stored session and validate the license in the background.
         Task { await restoreAccountIfPossible() }
+    }
+
+    /// Recording is the only thing gated by the entitlement. Everything the user
+    /// has already written remains viewable and exportable.
+    private func applyEntitlement(_ state: LicensingState) {
+        container.trackingEngine.setTrackingAllowed(state.isUsable)
+    }
+
+    var entitlementMessage: String {
+        switch licensingState {
+        case .signedOut:
+            return "Sign in to start your 14-day free trial. Yakitori needs an account so a trial can't be restarted."
+        case .invalid(let reason) where reason == "trial_expired":
+            return "Your 14-day free trial has ended. Buy a lifetime license to keep tracking new sessions."
+        case .invalid(let reason) where reason == "trial_unavailable":
+            return "This Mac has already used its free trial. Buy a lifetime license to keep tracking."
+        case .invalid:
+            return "Your license is not active. Open Account to review it."
+        case .unavailable:
+            return "Connect to the internet once to validate your license or start the free trial."
+        case .clockAnomaly:
+            return "The system clock looks wrong. Connect to the network to revalidate."
+        case .checking:
+            return "Checking your license…"
+        default:
+            return ""
+        }
     }
 
     private func restoreAccountIfPossible() async {
@@ -319,6 +352,10 @@ final class AppState: ObservableObject {
     // MARK: - Tracking controls
 
     func startManualSession(projectID: String?, type: SessionType) {
+        guard licensingState.isUsable else {
+            alertMessage = entitlementMessage
+            return
+        }
         container.trackingEngine.startManualSession(projectID: projectID, type: type)
         refresh()
     }

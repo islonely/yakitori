@@ -9,13 +9,34 @@ Two apps, one concern: **proving ownership without tying it to a device**.
 ## Product policy
 
 - One product, `Yakitori`.
-- One-time purchase, **lifetime** license: `license_type = "lifetime"`,
-  `expires_at = NULL`, no renewal.
+- A **one-time 14-day free trial**, then a one-time purchase, **lifetime**
+  license: `license_type = "lifetime"`, `expires_at = NULL`, no renewal.
 - **Unlimited installations.** There is no `max_installations`, no hardware
   fingerprinting, and no use of MAC address, serial number, hardware UUID, disk
   id, hostname, or CPU id anywhere in the codebase.
 - The account owns the license. Installations are listed for support and
   security, never to impose a device limit.
+
+## Free trial
+
+The trial is deliberately account-bound so it cannot be restarted.
+
+- The trial starts on the **first successful license validation** by a
+  signed-in account (i.e. the first time the app checks in), and lasts
+  `TRIAL_DAYS` (14 by default).
+- One trial per account (`Trial` is one-to-one with the user), and the
+  installation that consumed a trial is recorded (`Installation.trial_consumed_at`).
+  A different account on the same Mac is therefore **not** given a second trial.
+- A revoked or disabled license **never** falls back to a trial, so a refunded
+  purchase cannot be replayed as a free trial.
+- The trial is granted through the same signed authorization mechanism, with
+  `type = "trial"` and a hard `ent_exp` (trial end). The app locks when it
+  passes, even offline.
+- Signing out does not extend or reset a trial, because the server already knows
+  the account (and installation) has used it.
+
+The app gates only **recording of new sessions**. Everything already written
+remains viewable and exportable, and no local data is ever hidden or deleted.
 
 ## Commerce
 

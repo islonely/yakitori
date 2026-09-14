@@ -89,6 +89,9 @@ public final class TrackingEngine {
     private var lastActivityAt: Date?
     private var lastWordCount: Int?
     private var isRunning = false
+    /// When false, no new sessions start (license/trial not active). Existing
+    /// data is never touched; only recording is gated.
+    private var trackingAllowed = true
 
     private var inactivityTimer: DispatchSourceTimer?
     private var checkpointTimer: DispatchSourceTimer?
@@ -191,6 +194,27 @@ public final class TrackingEngine {
         dispatchChange(dataChanged: false)
     }
 
+    /// Enables or disables *recording* new sessions. Viewing existing data is
+    /// always allowed. Called by the app when the license/trial state changes.
+    public func setTrackingAllowed(_ allowed: Bool) {
+        queue.sync {
+            guard trackingAllowed != allowed else { return }
+            trackingAllowed = allowed
+            if !allowed, stateMachine.isSessionOpen {
+                captureWordCountLocked()
+                _ = stateMachine.handle(.stopManually(at: dateProvider.now))
+                persistEndedSessionLocked()
+                refreshSnapshotLocked()
+            }
+            Log.tracking.info("Tracking allowed: \(allowed, privacy: .public)")
+        }
+        dispatchChange(dataChanged: true)
+    }
+
+    public var isTrackingAllowed: Bool {
+        queue.sync { trackingAllowed }
+    }
+
     /// Ends and persists any open session (used on clean quit).
     public func endActiveSession() {
         queue.sync {
@@ -215,7 +239,7 @@ public final class TrackingEngine {
 
     public func startManualSession(projectID: String?, type: SessionType, documentID: String? = nil) {
         queue.sync {
-            guard isRunning else { return }
+            guard isRunning, trackingAllowed else { return }
             if stateMachine.isSessionOpen {
                 captureWordCountLocked()
                 _ = stateMachine.handle(.stopManually(at: dateProvider.now))
@@ -245,6 +269,7 @@ public final class TrackingEngine {
 
     public func resumeSession() {
         queue.sync {
+            guard trackingAllowed else { return }
             _ = stateMachine.handle(.resumeManually(at: dateProvider.now))
             checkpointOpenSessionLocked()
             refreshSnapshotLocked()
@@ -409,7 +434,7 @@ public final class TrackingEngine {
             captureWordCountLocked()
         }
 
-        let tracked = isTrackedWritingApplication(info)
+        let tracked = trackingAllowed && isTrackedWritingApplication(info)
         let application = tracked ? applicationRecord(for: info) : currentApplication
         let previousAppID = stateMachine.applicationID
 

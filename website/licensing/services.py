@@ -5,6 +5,7 @@ here requires manuscript data, and no license is ever tied to a device.
 """
 
 import logging
+from datetime import timedelta
 
 from django.conf import settings
 from django.db import transaction
@@ -13,8 +14,12 @@ from django.utils import timezone
 from audit.models import AuditEvent
 from audit.services import record
 
-from .models import Installation, License
-from .signing import build_authorization_payload, sign_authorization
+from .models import Installation, License, Trial
+from .signing import (
+    build_authorization_payload,
+    build_trial_authorization_payload,
+    sign_authorization,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -209,32 +214,137 @@ def find_installation(user, installation_id):
 # ---------------------------------------------------------------------------
 
 
+def trial_for(user):
+    return Trial.objects.filter(user=user).first()
+
+
+def trial_status(user):
+    trial = trial_for(user)
+    if trial is None:
+        return {
+            "used": False,
+            "active": False,
+            "ends_at": None,
+            "days_remaining": 0,
+        }
+    return {
+        "used": True,
+        "active": trial.is_active,
+        "ends_at": trial.ends_at,
+        "days_remaining": trial.days_remaining,
+    }
+
+
+def start_or_resume_trial(user, installation):
+    """Start a trial once, or return the existing one.
+
+    Returns ``None`` when the installation has already consumed a trial, which
+    prevents restarting a trial by creating a new account on the same Mac.
+    """
+    existing = trial_for(user)
+    if existing is not None:
+        return existing
+
+    if installation is not None and installation.trial_consumed_at is not None:
+        record(
+            AuditEvent.Type.TRIAL_STARTED,
+            target=user,
+            source="licensing",
+            outcome="refused_installation_used",
+        )
+        return None
+
+    trial = Trial.objects.create(
+        user=user,
+        ends_at=timezone.now() + timedelta(days=settings.TRIAL_DAYS),
+        installation_uuid=installation.installation_id if installation else None,
+    )
+    if installation is not None:
+        installation.trial_consumed_at = timezone.now()
+        installation.save(update_fields=["trial_consumed_at", "last_seen_at"])
+
+    record(
+        AuditEvent.Type.TRIAL_STARTED,
+        target=user,
+        source="licensing",
+        days=settings.TRIAL_DAYS,
+    )
+    return trial
+
+
+def _installation_error(installation):
+    if installation is None:
+        return "installation_not_registered"
+    if not installation.is_active:
+        return "installation_revoked"
+    return None
+
+
 def validate_license(user, installation):
-    """Return a validation result and, when valid, a signed authorization."""
+    """Return a validation result and, when valid, a signed authorization.
+
+    Resolution order:
+
+    1. An existing license wins. A revoked/disabled license yields an invalid
+       result and **never** falls back to a trial.
+    2. Otherwise a one-time trial is started (or resumed). Expired or
+       already-consumed trials yield an invalid result.
+    """
     license_obj = License.objects.filter(user=user, product=_product()).first()
 
-    if license_obj is None:
-        return {"valid": False, "reason": "no_license"}
-    if license_obj.status != License.Status.ACTIVE:
-        return {"valid": False, "reason": license_obj.status}
-    if installation is None:
-        return {"valid": False, "reason": "installation_not_registered"}
-    if not installation.is_active:
-        return {"valid": False, "reason": "installation_revoked"}
+    if license_obj is not None:
+        if license_obj.status != License.Status.ACTIVE:
+            return {"valid": False, "reason": license_obj.status, "kind": "license"}
 
-    payload = build_authorization_payload(license_obj, installation)
-    token = sign_authorization(payload)
+        error = _installation_error(installation)
+        if error:
+            return {"valid": False, "reason": error}
 
+        token = sign_authorization(
+            build_authorization_payload(license_obj, installation)
+        )
+        record(
+            AuditEvent.Type.LICENSE_VALIDATED,
+            actor=user,
+            target=user,
+            source="licensing",
+            kind="license",
+            installation=str(installation.installation_id),
+        )
+        return {
+            "valid": True,
+            "kind": "license",
+            "authorization": token,
+            "offline_grace_days": settings.LICENSE_OFFLINE_GRACE_DAYS,
+            "license": license_obj,
+        }
+
+    # No license: the trial path.
+    error = _installation_error(installation)
+    if error:
+        return {"valid": False, "reason": error}
+
+    trial = start_or_resume_trial(user, installation)
+    if trial is None:
+        return {"valid": False, "reason": "trial_unavailable", "kind": "trial"}
+    if not trial.is_active:
+        return {"valid": False, "reason": "trial_expired", "kind": "trial"}
+
+    token = sign_authorization(
+        build_trial_authorization_payload(user, installation, trial)
+    )
     record(
         AuditEvent.Type.LICENSE_VALIDATED,
         actor=user,
         target=user,
         source="licensing",
+        kind="trial",
         installation=str(installation.installation_id),
     )
     return {
         "valid": True,
+        "kind": "trial",
         "authorization": token,
-        "offline_grace_days": settings.LICENSE_OFFLINE_GRACE_DAYS,
-        "license": license_obj,
+        "offline_grace_days": 0,
+        "trial": trial,
     }

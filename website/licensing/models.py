@@ -1,7 +1,9 @@
+import math
 import uuid
 
 from django.conf import settings
 from django.db import models
+from django.utils import timezone
 
 
 class License(models.Model):
@@ -97,6 +99,11 @@ class Installation(models.Model):
     last_seen_at = models.DateTimeField(auto_now=True)
     revoked_at = models.DateTimeField(null=True, blank=True)
 
+    # Set the first time this installation starts a free trial. A second trial
+    # is refused on an installation that has already consumed one, even for a
+    # different account.
+    trial_consumed_at = models.DateTimeField(null=True, blank=True)
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -109,3 +116,41 @@ class Installation(models.Model):
     @property
     def is_active(self):
         return self.revoked_at is None
+
+
+class Trial(models.Model):
+    """A one-time 14-day free trial, tied to an account.
+
+    Tying the trial to an account is what makes it non-repeatable: the server
+    already knows whether the account has used its trial, so signing out and
+    back in (or reinstalling) cannot restart it. The installation that consumed
+    a trial is recorded as a secondary guard against creating a new account to
+    get a fresh trial on the same Mac.
+    """
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+
+    user = models.OneToOneField(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="trial",
+    )
+
+    started_at = models.DateTimeField(auto_now_add=True)
+    ends_at = models.DateTimeField()
+    installation_uuid = models.UUIDField(null=True, blank=True)
+
+    class Meta:
+        ordering = ("-started_at",)
+
+    def __str__(self):
+        return f"trial:{self.user_id}"
+
+    @property
+    def is_active(self):
+        return timezone.now() < self.ends_at
+
+    @property
+    def days_remaining(self):
+        seconds = (self.ends_at - timezone.now()).total_seconds()
+        return max(0, math.ceil(seconds / 86400))

@@ -180,8 +180,10 @@ public enum Feature: String, Codable, CaseIterable, Sendable {
     ]
 }
 
-/// Central feature gate. The local product ships with everything unlocked;
-/// this exists so monetization can be added later without touching views.
+/// Per-feature tiers kept for future monetization (for example cloud features).
+/// It is **not** the active entitlement gate: enforcement today is time-based
+/// (a 14-day trial or a lifetime license) and lives in `LicensingService` /
+/// `TrackingEngine.setTrackingAllowed`.
 public final class FeatureFlags: @unchecked Sendable {
     public static let shared = FeatureFlags()
 

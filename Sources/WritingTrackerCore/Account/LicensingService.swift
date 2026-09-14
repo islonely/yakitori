@@ -1,28 +1,71 @@
 import Foundation
 
+public enum LicenseKind: String, Equatable, Sendable {
+    case license
+    case trial
+}
+
 public struct LicenseSnapshot: Equatable, Sendable {
+    public let kind: LicenseKind
     public let product: String
     public let licenseType: String
     public let status: String
+    /// Hard end of the entitlement (trial end). `nil` for a lifetime license.
+    public let entitlementExpiresAt: Date?
     /// The offline grace deadline. Lifetime licenses have no expiry.
     public let offlineGraceUntil: Date?
     /// True when this snapshot came from a cached authorization, not a server check.
     public let verifiedOffline: Bool
+
+    public init(
+        kind: LicenseKind,
+        product: String,
+        licenseType: String,
+        status: String,
+        entitlementExpiresAt: Date? = nil,
+        offlineGraceUntil: Date? = nil,
+        verifiedOffline: Bool = false
+    ) {
+        self.kind = kind
+        self.product = product
+        self.licenseType = licenseType
+        self.status = status
+        self.entitlementExpiresAt = entitlementExpiresAt
+        self.offlineGraceUntil = offlineGraceUntil
+        self.verifiedOffline = verifiedOffline
+    }
+
+    public var isTrial: Bool { kind == .trial }
+
+    public var daysRemaining: Int? {
+        guard let entitlementExpiresAt else { return nil }
+        let seconds = entitlementExpiresAt.timeIntervalSinceNow
+        return max(0, Int(ceil(seconds / 86_400)))
+    }
 }
 
 public enum LicensingState: Equatable {
     case signedOut
     case checking
     case active(LicenseSnapshot)
+    case trial(LicenseSnapshot)
     case grace(LicenseSnapshot)
     case invalid(reason: String)
     case unavailable(reason: String)
     case clockAnomaly
 
+    /// Whether the app is allowed to record new sessions.
     public var isUsable: Bool {
         switch self {
-        case .active, .grace: return true
+        case .active, .trial, .grace: return true
         default: return false
+        }
+    }
+
+    public var snapshot: LicenseSnapshot? {
+        switch self {
+        case .active(let value), .trial(let value), .grace(let value): return value
+        default: return nil
         }
     }
 }
@@ -33,8 +76,8 @@ public enum CachedEvaluation: Equatable {
     case snapshot(LicenseSnapshot)
 }
 
-/// Validates the account's license online and keeps a signed authorization for
-/// offline use.
+/// Validates the account's license or trial online and keeps a signed
+/// authorization for offline use.
 ///
 /// A server outage is never treated as revocation. An explicit server-side
 /// revocation overrides the cache the next time the app can reach the server.
@@ -104,22 +147,31 @@ public final class LicensingService: @unchecked Sendable {
                 as: LicenseValidation.self
             )
 
-            if response.valid, let authorization = response.authorization,
-               let license = response.license {
+            if response.valid, let authorization = response.authorization {
                 try? secrets.set(authorization, for: authorizationKey)
                 recordLastSeen()
+
                 let claims = try? LicenseVerifier.verify(
                     token: authorization,
                     trustedKeys: configuration.trustedLicenseKeys
                 )
-                let snapshot = LicenseSnapshot(
-                    product: license.product,
-                    licenseType: license.licenseType,
-                    status: license.status,
-                    offlineGraceUntil: claims?.expiresAt,
+                // Reject an authorization that verifies to a trial but whose
+                // entitlement has already ended.
+                if let claims, claims.entitlementExpiresAt != nil,
+                   dateProvider.now > claims.entitlementExpiresAt! {
+                    clearCache()
+                    setState(.invalid(reason: "trial_expired"))
+                    return
+                }
+
+                let kind: LicenseKind = response.kind == "trial" ? .trial : .license
+                let snapshot = makeSnapshot(
+                    kind: kind,
+                    response: response,
+                    claims: claims,
                     verifiedOffline: false
                 )
-                setState(.active(snapshot))
+                setState(kind == .trial ? .trial(snapshot) : .active(snapshot))
             } else {
                 // Server says no: this overrides any cached authorization.
                 clearCache()
@@ -132,10 +184,33 @@ public final class LicensingService: @unchecked Sendable {
         }
     }
 
+    private func makeSnapshot(
+        kind: LicenseKind,
+        response: LicenseValidation?,
+        claims: LicenseClaims?,
+        verifiedOffline: Bool
+    ) -> LicenseSnapshot {
+        LicenseSnapshot(
+            kind: kind,
+            product: response?.license?.product ?? claims?.product ?? "Yakitori",
+            licenseType: response?.license?.licenseType
+                ?? claims?.licenseType
+                ?? kind.rawValue,
+            status: response?.license?.status ?? claims?.status ?? "active",
+            entitlementExpiresAt: claims?.entitlementExpiresAt,
+            offlineGraceUntil: claims?.expiresAt,
+            verifiedOffline: verifiedOffline
+        )
+    }
+
     private func applyOfflineFallback() {
         switch evaluateCached() {
         case .snapshot(let snapshot):
-            setState(.grace(snapshot))
+            if snapshot.kind == .trial {
+                setState(.trial(snapshot))
+            } else {
+                setState(.grace(snapshot))
+            }
         case .clockAnomaly:
             setState(.clockAnomaly)
         case .none:
@@ -162,15 +237,24 @@ public final class LicensingService: @unchecked Sendable {
         if now.addingTimeInterval(clockTolerance) < claims.issuedAt {
             return .clockAnomaly
         }
-        guard now <= claims.expiresAt else {
-            return .none
+
+        let kind: LicenseKind = claims.licenseType == "trial" ? .trial : .license
+
+        if let entitlementEnd = claims.entitlementExpiresAt {
+            // Trial: the entitlement must still be running.
+            guard now <= entitlementEnd else { return .none }
+        } else {
+            // Lifetime: bounded only by the offline grace deadline.
+            guard now <= claims.expiresAt else { return .none }
         }
 
         return .snapshot(
             LicenseSnapshot(
+                kind: kind,
                 product: claims.product,
                 licenseType: claims.licenseType,
                 status: claims.status,
+                entitlementExpiresAt: claims.entitlementExpiresAt,
                 offlineGraceUntil: claims.expiresAt,
                 verifiedOffline: true
             )

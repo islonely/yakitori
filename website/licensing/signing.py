@@ -118,5 +118,32 @@ def build_authorization_payload(license_obj, installation):
         "inst": str(installation.installation_id),
         "iat": now,
         "revalidate_after": now + 86400,
+        # `exp` is the offline validity deadline; a lifetime license has no
+        # entitlement expiry (`ent_exp` is null).
         "exp": grace_until,
+        "ent_exp": None,
+    }
+
+
+def build_trial_authorization_payload(user, installation, trial):
+    """Claims for a trial grant.
+
+    `ent_exp` is the hard trial end: the app locks when it passes, even offline.
+    `exp` equals it so cached authorization cannot outlive the trial.
+    """
+    now = int(time.time())
+    trial_end = int(trial.ends_at.timestamp())
+    return {
+        "v": 1,
+        "key": settings.LICENSE_SIGNING_KEY_ID,
+        "sub": str(user.pk),
+        "lic": "",
+        "product": settings.PRODUCT_NAME,
+        "type": "trial",
+        "status": "active",
+        "inst": str(installation.installation_id),
+        "iat": now,
+        "revalidate_after": min(now + 86400, trial_end),
+        "exp": trial_end,
+        "ent_exp": trial_end,
     }

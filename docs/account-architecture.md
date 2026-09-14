@@ -138,8 +138,14 @@ offline.
   must point it at the production origin.
 
 The Account screen (`UI/Account/AccountView.swift`) shows sign-in, the device
-code, the license state (active / offline grace / invalid / unavailable / clock
-anomaly), and the installation id. None of this blocks tracking.
+code, the entitlement state (licensed / free trial / offline grace / invalid /
+unavailable / clock anomaly), and the installation id.
+
+Signing in is required to start the 14-day free trial (see
+`docs/licensing-architecture.md`), because the server must be able to tell
+whether an account has already used it. The app gates only the recording of new
+sessions (`TrackingEngine.setTrackingAllowed`); existing data stays viewable and
+exportable, and no local data is hidden or deleted.
 
 ## Threat considerations
 

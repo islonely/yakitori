@@ -1,12 +1,14 @@
 import uuid
+from datetime import timedelta
 
 from django.test import TestCase, override_settings
+from django.utils import timezone
 
 from accounts.models import User
 from commerce import services as commerce_services
 from commerce.providers import EventKind
 from licensing import services
-from licensing.models import Installation, License
+from licensing.models import Installation, License, Trial
 from licensing.signing import (
     SigningError,
     verify_authorization,
@@ -150,12 +152,77 @@ class AuthorizationTests(TestCase):
         self.assertFalse(result["valid"])
         self.assertEqual(result["reason"], "revoked")
 
-    def test_no_license_cannot_validate(self):
+    def test_no_license_starts_a_trial(self):
         other = User.objects.create_user(email="nolicense@example.com")
         installation, _ = services.register_installation(other, uuid.uuid4())
         result = services.validate_license(other, installation)
+        self.assertTrue(result["valid"])
+        self.assertEqual(result["kind"], "trial")
+        self.assertGreater(result["trial"].days_remaining, 0)
+
+
+@override_settings(**LICENSE_SETTINGS)
+class TrialTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(email="trial@example.com")
+        self.installation, _ = services.register_installation(
+            self.user, uuid.uuid4()
+        )
+
+    def test_first_validation_starts_a_14_day_trial(self):
+        result = services.validate_license(self.user, self.installation)
+        self.assertTrue(result["valid"])
+        self.assertEqual(result["kind"], "trial")
+
+        trial = Trial.objects.get(user=self.user)
+        self.assertAlmostEqual(trial.days_remaining, 14, delta=1)
+
+        claims = verify_authorization(result["authorization"], TEST_PUBLIC)
+        self.assertEqual(claims["type"], "trial")
+        self.assertIsNotNone(claims["ent_exp"])
+        self.assertEqual(claims["ent_exp"], claims["exp"])
+
+    def test_trial_is_never_restarted(self):
+        services.validate_license(self.user, self.installation)
+        trial = Trial.objects.get(user=self.user)
+        trial.ends_at = timezone.now() + timedelta(days=2)
+        trial.save(update_fields=["ends_at"])
+
+        services.validate_license(self.user, self.installation)
+
+        trial.refresh_from_db()
+        self.assertLessEqual(trial.days_remaining, 2)
+        self.assertEqual(Trial.objects.count(), 1)
+
+    def test_expired_trial_is_invalid(self):
+        Trial.objects.create(
+            user=self.user,
+            ends_at=timezone.now() - timedelta(days=1),
+            installation_uuid=self.installation.installation_id,
+        )
+        result = services.validate_license(self.user, self.installation)
         self.assertFalse(result["valid"])
-        self.assertEqual(result["reason"], "no_license")
+        self.assertEqual(result["reason"], "trial_expired")
+
+    def test_new_account_on_used_installation_gets_no_trial(self):
+        services.validate_license(self.user, self.installation)
+
+        other = User.objects.create_user(email="reuser@example.com")
+        installation, _ = services.register_installation(
+            other, self.installation.installation_id
+        )
+        result = services.validate_license(other, installation)
+        self.assertFalse(result["valid"])
+        self.assertEqual(result["reason"], "trial_unavailable")
+
+    def test_revoked_license_does_not_fall_back_to_trial(self):
+        purchase, _checkout = commerce_services.start_purchase(self.user)
+        commerce_services.simulate_event(purchase, EventKind.PURCHASE_COMPLETED)
+        commerce_services.simulate_event(purchase, EventKind.REFUND_ISSUED)
+
+        result = services.validate_license(self.user, self.installation)
+        self.assertFalse(result["valid"])
+        self.assertEqual(result["reason"], "revoked")
 
 
 @override_settings(**LICENSE_SETTINGS)
@@ -185,7 +252,7 @@ class LicensingApiTests(TestCase):
         )
         self.assertEqual(response.status_code, 400)
 
-    def test_validate_requires_license(self):
+    def test_validate_starts_trial_when_unlicensed(self):
         self.client.post(
             "/v1/me/installations",
             data=f'{{"installation_id": "{self.installation_id}"}}',
@@ -197,7 +264,10 @@ class LicensingApiTests(TestCase):
             content_type="application/json",
         )
         self.assertEqual(response.status_code, 200)
-        self.assertFalse(response.json()["valid"])
+        payload = response.json()
+        self.assertTrue(payload["valid"])
+        self.assertEqual(payload["kind"], "trial")
+        self.assertGreater(payload["trial"]["days_remaining"], 0)
 
     def test_full_api_validation_after_purchase(self):
         purchase, _checkout = commerce_services.start_purchase(self.user)

@@ -93,25 +93,41 @@ public struct LicenseInfo: Codable, Equatable, Sendable {
     }
 }
 
+public struct TrialInfo: Codable, Equatable, Sendable {
+    public let endsAt: String?
+    public let daysRemaining: Int?
+
+    public init(endsAt: String? = nil, daysRemaining: Int? = nil) {
+        self.endsAt = endsAt
+        self.daysRemaining = daysRemaining
+    }
+}
+
 public struct LicenseValidation: Codable, Equatable, Sendable {
     public let valid: Bool
     public let reason: String?
+    public let kind: String?
     public let authorization: String?
     public let offlineGraceDays: Int?
     public let license: LicenseInfo?
+    public let trial: TrialInfo?
 
     public init(
         valid: Bool,
         reason: String? = nil,
+        kind: String? = nil,
         authorization: String? = nil,
         offlineGraceDays: Int? = nil,
-        license: LicenseInfo? = nil
+        license: LicenseInfo? = nil,
+        trial: TrialInfo? = nil
     ) {
         self.valid = valid
         self.reason = reason
+        self.kind = kind
         self.authorization = authorization
         self.offlineGraceDays = offlineGraceDays
         self.license = license
+        self.trial = trial
     }
 }
 

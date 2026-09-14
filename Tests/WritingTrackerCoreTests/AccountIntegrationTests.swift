@@ -65,10 +65,11 @@ enum TestLicense {
         issuedAt: Date,
         revalidateAfter: Date,
         expiresAt: Date,
+        entitlementExpiresAt: Date? = nil,
         version: Int = 1
     ) -> String {
         let header: [String: Any] = ["alg": "Ed25519", "kid": kid]
-        let payload: [String: Any] = [
+        var payload: [String: Any] = [
             "v": version,
             "key": kid,
             "sub": subject,
@@ -81,6 +82,9 @@ enum TestLicense {
             "revalidate_after": Int(revalidateAfter.timeIntervalSince1970),
             "exp": Int(expiresAt.timeIntervalSince1970),
         ]
+        payload["ent_exp"] = entitlementExpiresAt.map {
+            Int($0.timeIntervalSince1970)
+        } ?? NSNull()
 
         let headerPart = Base64URL.encode(TestJSON.data(header))
         let payloadPart = Base64URL.encode(TestJSON.data(payload))
@@ -186,6 +190,33 @@ final class LicenseVerifierTests: XCTestCase {
         ) { error in
             XCTAssertEqual(error as? LicenseVerificationError, .malformed)
         }
+    }
+
+    func testParsesTrialEntitlementExpiry() throws {
+        let key = TestLicense.keyPair()
+        let now = Date()
+        let trialEnd = now.addingTimeInterval(14 * 86_400)
+        let token = TestLicense.token(
+            privateKey: key,
+            type: "trial",
+            installation: UUID(),
+            issuedAt: now,
+            revalidateAfter: now,
+            expiresAt: trialEnd,
+            entitlementExpiresAt: trialEnd
+        )
+
+        let claims = try LicenseVerifier.verify(
+            token: token,
+            trustedKeys: ["test-1": TestLicense.publicKeyData(key)]
+        )
+        XCTAssertEqual(claims.licenseType, "trial")
+        XCTAssertNotNil(claims.entitlementExpiresAt)
+        XCTAssertEqual(
+            claims.entitlementExpiresAt?.timeIntervalSince1970 ?? 0,
+            trialEnd.timeIntervalSince1970,
+            accuracy: 1
+        )
     }
 }
 
@@ -307,6 +338,23 @@ final class LicensingServiceTests: XCTestCase {
             issuedAt: issuedAt,
             revalidateAfter: issuedAt.addingTimeInterval(86_400),
             expiresAt: expiresAt
+        )
+    }
+
+    private func trialToken(
+        key: Curve25519.Signing.PrivateKey,
+        installation: UUID,
+        issuedAt: Date,
+        trialEnd: Date
+    ) -> String {
+        TestLicense.token(
+            privateKey: key,
+            type: "trial",
+            installation: installation,
+            issuedAt: issuedAt,
+            revalidateAfter: issuedAt,
+            expiresAt: trialEnd,
+            entitlementExpiresAt: trialEnd
         )
     }
 
@@ -461,5 +509,95 @@ final class LicensingServiceTests: XCTestCase {
         await service.refresh()
         XCTAssertEqual(service.state, .invalid(reason: "revoked"))
         XCTAssertNil(try? secrets.string(for: "license-authorization"))
+    }
+
+    func testOnlineTrialBecomesTrialState() async throws {
+        let key = TestLicense.keyPair()
+        let secrets = InMemorySecretStore()
+        let installation = try InstallationIdentity(store: secrets).installationID()
+        let trialEnd = fixedNow.addingTimeInterval(14 * 86_400)
+        let token = trialToken(
+            key: key,
+            installation: installation,
+            issuedAt: fixedNow,
+            trialEnd: trialEnd
+        )
+
+        let transport = MockTransport(routes: [
+            .init(method: "POST", path: "/v1/me/license/validate", status: 200, body: TestJSON.data([
+                "valid": true,
+                "kind": "trial",
+                "authorization": token,
+                "offline_grace_days": 0,
+                "trial": ["ends_at": "2026-01-15T00:00:00Z", "days_remaining": 14],
+            ])),
+        ])
+
+        let service = LicensingService(
+            configuration: configuration(key: key),
+            transport: transport,
+            secrets: secrets,
+            dateProvider: MutableDateProvider(fixedNow)
+        )
+
+        await service.refresh()
+        guard case .trial(let snapshot) = service.state else {
+            return XCTFail("expected trial, got \(service.state)")
+        }
+        XCTAssertTrue(service.state.isUsable)
+        XCTAssertTrue(snapshot.isTrial)
+        XCTAssertGreaterThan(snapshot.daysRemaining ?? 0, 0)
+    }
+
+    func testExpiredTrialCacheIsNotUsableOffline() async {
+        let key = TestLicense.keyPair()
+        let secrets = InMemorySecretStore()
+        let installation = try! InstallationIdentity(store: secrets).installationID()
+        let token = trialToken(
+            key: key,
+            installation: installation,
+            issuedAt: fixedNow.addingTimeInterval(-30 * 86_400),
+            trialEnd: fixedNow.addingTimeInterval(-86_400)
+        )
+        try? secrets.set(token, for: "license-authorization")
+        try? secrets.set(String(fixedNow.timeIntervalSince1970), for: "license-last-seen")
+
+        let service = LicensingService(
+            configuration: configuration(key: key),
+            transport: MockTransport(routes: []),
+            secrets: secrets,
+            dateProvider: MutableDateProvider(fixedNow)
+        )
+
+        await service.refresh()
+        guard case .unavailable = service.state else {
+            return XCTFail("expected unavailable, got \(service.state)")
+        }
+        XCTAssertFalse(service.state.isUsable)
+    }
+
+    func testServerReportedExpiredTrialIsInvalid() async {
+        let key = TestLicense.keyPair()
+        let secrets = InMemorySecretStore()
+        _ = try? InstallationIdentity(store: secrets).installationID()
+
+        let transport = MockTransport(routes: [
+            .init(method: "POST", path: "/v1/me/license/validate", status: 200, body: TestJSON.data([
+                "valid": false,
+                "reason": "trial_expired",
+                "kind": "trial",
+            ])),
+        ])
+
+        let service = LicensingService(
+            configuration: configuration(key: key),
+            transport: transport,
+            secrets: secrets,
+            dateProvider: MutableDateProvider(fixedNow)
+        )
+
+        await service.refresh()
+        XCTAssertEqual(service.state, .invalid(reason: "trial_expired"))
+        XCTAssertFalse(service.state.isUsable)
     }
 }

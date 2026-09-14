@@ -22,6 +22,13 @@ def serialize_license(license_obj):
     }
 
 
+def serialize_trial(trial):
+    return {
+        "ends_at": trial.ends_at.isoformat(),
+        "days_remaining": trial.days_remaining,
+    }
+
+
 def serialize_installation(installation):
     return {
         "installation_id": str(installation.installation_id),
@@ -104,13 +111,19 @@ def validate(request):
 
     result = services.validate_license(request.api_user, installation)
     if not result["valid"]:
-        return json_response({"valid": False, "reason": result["reason"]})
+        payload = {"valid": False, "reason": result["reason"]}
+        if result.get("kind"):
+            payload["kind"] = result["kind"]
+        return json_response(payload)
 
-    return json_response(
-        {
-            "valid": True,
-            "authorization": result["authorization"],
-            "offline_grace_days": result["offline_grace_days"],
-            "license": serialize_license(result["license"]),
-        }
-    )
+    payload = {
+        "valid": True,
+        "kind": result.get("kind", "license"),
+        "authorization": result["authorization"],
+        "offline_grace_days": result["offline_grace_days"],
+    }
+    if result.get("license") is not None:
+        payload["license"] = serialize_license(result["license"])
+    if result.get("trial") is not None:
+        payload["trial"] = serialize_trial(result["trial"])
+    return json_response(payload)

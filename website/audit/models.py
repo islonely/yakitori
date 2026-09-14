@@ -29,6 +29,7 @@ class AuditEvent(models.Model):
         LICENSE_VALIDATED = "license.validated", "License validated"
         LICENSE_REVOKED = "license.revoked", "License revoked"
         LICENSE_RESTORED = "license.restored", "License restored"
+        TRIAL_STARTED = "trial.started", "Free trial started"
         INSTALLATION_REGISTERED = "installation.registered", "Installation registered"
         INSTALLATION_REVOKED = "installation.revoked", "Installation revoked"
         REFUND_RECORDED = "refund.recorded", "Refund recorded"

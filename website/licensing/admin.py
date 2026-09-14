@@ -1,7 +1,17 @@
 from django.contrib import admin
 
-from .models import Installation, License
+from .models import Installation, License, Trial
 from .services import set_license_status
+
+
+@admin.register(Trial)
+class TrialAdmin(admin.ModelAdmin):
+    list_display = ("user", "started_at", "ends_at", "installation_uuid")
+    search_fields = ("user__email",)
+    readonly_fields = [field.name for field in Trial._meta.fields]
+
+    def has_add_permission(self, request):
+        return False
 
 
 @admin.register(License)

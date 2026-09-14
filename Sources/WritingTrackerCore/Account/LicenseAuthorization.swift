@@ -15,6 +15,9 @@ public struct LicenseClaims: Equatable, Sendable {
     public let revalidateAfter: Date
     /// The offline grace deadline, **not** a license expiry.
     public let expiresAt: Date
+    /// Hard end of the entitlement. `nil` for a lifetime license; the trial end
+    /// for a trial. The app locks when this passes, even offline.
+    public let entitlementExpiresAt: Date?
 }
 
 public enum LicenseVerificationError: Error, Equatable {
@@ -45,10 +48,12 @@ public enum LicenseVerifier {
         let iat: Int
         let revalidateAfter: Int
         let exp: Int
+        let entExp: Int?
 
         enum CodingKeys: String, CodingKey {
             case v, key, sub, lic, product, type, status, inst, iat, exp
             case revalidateAfter = "revalidate_after"
+            case entExp = "ent_exp"
         }
     }
 
@@ -108,7 +113,10 @@ public enum LicenseVerifier {
             installation: payload.inst,
             issuedAt: Date(timeIntervalSince1970: TimeInterval(payload.iat)),
             revalidateAfter: Date(timeIntervalSince1970: TimeInterval(payload.revalidateAfter)),
-            expiresAt: Date(timeIntervalSince1970: TimeInterval(payload.exp))
+            expiresAt: Date(timeIntervalSince1970: TimeInterval(payload.exp)),
+            entitlementExpiresAt: payload.entExp.map {
+                Date(timeIntervalSince1970: TimeInterval($0))
+            }
         )
     }
 }

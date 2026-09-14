@@ -261,9 +261,10 @@ export, backup, and destructive-operation safety.
   text counts, and it only exists for Word/Pages sessions where character counts
   are available. It is not per-keystroke counting.
 - Accounts and lifetime licensing now exist in the `website/` platform, and the
-  app can optionally sign in from the **Account** screen to attach a license.
-  Signing in is never required: tracking, statistics, and every local feature
-  work offline and signed out.
+  app signs in from the **Account** screen to start a one-time **14-day free
+  trial** or attach a lifetime license. Once entitled, tracking works fully
+  offline. Recording new sessions requires an active license or trial; existing
+  data always stays viewable and exportable, and nothing local is deleted.
 - Cloud sync of writing data, widgets, and AI analysis are intentionally not
   implemented. Writing data is never uploaded; only deliberately public
   aggregate numbers ever can be.

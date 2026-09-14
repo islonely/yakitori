@@ -49,10 +49,10 @@ struct AccountView: View {
             if state.isDeviceSignInPresented, let authorization = state.deviceAuthorization {
                 deviceFlow(authorization)
             } else {
-                Text("Sign in to register this Mac and verify your license. Your writing data stays on this Mac either way.")
+                Text("Yakitori includes a 14-day free trial. Sign in to start it on this Mac — an account is required so a trial can't be restarted. Your writing data stays on this Mac either way.")
                     .foregroundStyle(.secondary)
                 HStack {
-                    Button("Sign in") { state.beginDeviceSignIn() }
+                    Button("Start free trial") { state.beginDeviceSignIn() }
                         .buttonStyle(.borderedProminent)
                 }
                 if let error = state.deviceSignInError {
@@ -133,8 +133,14 @@ struct AccountView: View {
                 }
 
             case .active(let snapshot):
-                licenseDetails(snapshot, badge: "Active", tint: .green)
-                Text("Validated with the licensing server.")
+                licenseDetails(snapshot, badge: "Licensed", tint: .green)
+                Text("A lifetime license is attached to this account.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+
+            case .trial(let snapshot):
+                licenseDetails(snapshot, badge: "Free trial", tint: .orange)
+                Text("Your trial is running. Buy a lifetime license before it ends to keep tracking new sessions.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
 
@@ -145,9 +151,9 @@ struct AccountView: View {
                     .foregroundStyle(.secondary)
 
             case .invalid(let reason):
-                Text("This account does not have a valid license (\(reason)).")
+                Text(invalidTitle(reason))
                     .foregroundStyle(.secondary)
-                Text("If you purchased Yakitori, sign in on the website to attach the license to this account.")
+                Text("Open Pricing on the website to buy a lifetime license, or sign in with the account that owns it.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
 
@@ -176,10 +182,35 @@ struct AccountView: View {
                     .clipShape(Capsule())
             }
             labeledRow("Product", snapshot.product)
-            labeledRow("Type", snapshot.licenseType.capitalized)
-            if let graceUntil = snapshot.offlineGraceUntil {
-                labeledRow("Offline grace until", Format.shortDayYear.string(from: graceUntil))
+
+            if snapshot.kind == .trial {
+                if let days = snapshot.daysRemaining {
+                    labeledRow("Days remaining", "\(days)")
+                }
+                if let endsAt = snapshot.entitlementExpiresAt {
+                    labeledRow("Trial ends", Format.shortDayYear.string(from: endsAt))
+                }
+            } else {
+                labeledRow("Type", snapshot.licenseType.capitalized)
+                if let graceUntil = snapshot.offlineGraceUntil {
+                    labeledRow("Offline grace until", Format.shortDayYear.string(from: graceUntil))
+                }
             }
+        }
+    }
+
+    private func invalidTitle(_ reason: String) -> String {
+        switch reason {
+        case "trial_expired":
+            return "Your 14-day free trial has ended."
+        case "trial_unavailable":
+            return "This Mac has already used its free trial."
+        case "revoked":
+            return "This license was revoked (for example, after a refund)."
+        case "disabled":
+            return "This license is currently disabled."
+        default:
+            return "No active license (\(reason))."
         }
     }
 
