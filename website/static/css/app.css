@@ -151,3 +151,27 @@ textarea { min-height: 120px; resize: vertical; }
 
 .htmx-indicator { opacity: 0; transition: opacity 120ms ease-in; }
 .htmx-request .htmx-indicator { opacity: 1; }
+
+.checkbox { display: flex; align-items: flex-start; gap: 8px; margin: 16px 0; }
+.checkbox input { width: auto; margin-top: 4px; }
+
+.account-layout {
+    display: grid;
+    grid-template-columns: 200px 1fr;
+    gap: 32px;
+    padding: 40px 20px;
+    align-items: start;
+}
+.account-nav { display: flex; flex-direction: column; gap: 4px; }
+.account-nav a { color: var(--muted); padding: 8px 10px; border-radius: var(--radius); }
+.account-nav a:hover { background: var(--panel); color: var(--text); text-decoration: none; }
+.account-nav a.active { background: var(--panel); color: var(--text); }
+.account-main { min-width: 0; }
+
+.badge-active { border-color: var(--success); color: var(--success); }
+.badge-suspended, .badge-deleted, .badge-pending_deletion { border-color: var(--danger); color: var(--danger); }
+
+@media (max-width: 720px) {
+    .account-layout { grid-template-columns: 1fr; gap: 20px; }
+    .account-nav { flex-direction: row; flex-wrap: wrap; }
+}

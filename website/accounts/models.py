@@ -185,6 +185,24 @@ class ApiToken(models.Model):
         return True
 
 
+class RateLimitEntry(models.Model):
+    """A DB-backed fixed-window counter.
+
+    Rate limiting must be server-side; this table is shared by all actions and
+    is intentionally simple. Keys are namespaced (for example `login-request:ip:1.2.3.4`).
+    """
+
+    key = models.CharField(max_length=255, unique=True)
+    attempts = models.PositiveIntegerField(default=0)
+    reset_at = models.DateTimeField()
+
+    class Meta:
+        indexes = [models.Index(fields=["reset_at"])]
+
+    def __str__(self):
+        return f"{self.key}: {self.attempts}"
+
+
 class DeviceAuthorization(models.Model):
     """RFC-8628-style device authorization for the macOS app.
 

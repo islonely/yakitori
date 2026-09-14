@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+
+{% block title %}Enter your code — {{ platform_name }}{% endblock %}
+
+{% block content %}
+<section class="wrap page">
+    <h1>Enter your code</h1>
+    <p class="lede">Paste the code from the email we sent you.</p>
+
+    {% if error %}<div class="message error">{{ error }}</div>{% endif %}
+
+    <form method="post" action="{% url 'accounts:sign-in-code' %}">
+        {% csrf_token %}
+        <label for="email">Email address</label>
+        <input type="email" id="email" name="email" value="{{ email }}" required autocomplete="email">
+
+        <label for="code">Code</label>
+        <input type="text" id="code" name="code" inputmode="numeric" autocomplete="one-time-code" required>
+
+        <p><button class="button" type="submit">Sign in</button></p>
+    </form>
+</section>
+{% endblock %}

@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+
+{% block title %}Device {% if approved %}approved{% else %}denied{% endif %} — {{ platform_name }}{% endblock %}
+
+{% block content %}
+<section class="wrap page">
+    {% if approved %}
+        <h1>Device approved</h1>
+        <p class="lede">
+            You can close this window and return to {{ product_name }}. The app
+            will finish signing in on its own.
+        </p>
+    {% else %}
+        <h1>Device denied</h1>
+        <p class="lede">
+            That request was denied and no access was granted. You can close this
+            window.
+        </p>
+    {% endif %}
+</section>
+{% endblock %}

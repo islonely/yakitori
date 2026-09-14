@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+
+{% block title %}Check your email — {{ platform_name }}{% endblock %}
+
+{% block content %}
+<section class="wrap page">
+    <h1>Check your email</h1>
+    <p class="lede">
+        If that address can sign in, a single-use link and code are on the way.
+        The link expires shortly.
+    </p>
+    <p class="fine-print">
+        You can also <a href="{% url 'accounts:sign-in-code' %}">enter the code</a>
+        instead.
+    </p>
+</section>
+{% endblock %}

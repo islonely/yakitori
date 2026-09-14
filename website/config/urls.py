@@ -8,6 +8,17 @@ from config import views
 urlpatterns = [
     path("admin/", admin.site.urls),
     path("healthz", views.healthz, name="healthz"),
+
+    # Authenticated account area (HTML).
+    path("dashboard/", include("dashboard.urls")),
+
+    # Identity: sign in/up/out and device approval (HTML).
+    path("", include("accounts.urls")),
+
+    # Versioned JSON API.
+    path("v1/", include("accounts.api_urls")),
+
+    # Public marketing and legal pages (catch-all, keep last).
     path("", include("web.urls")),
 ]
 

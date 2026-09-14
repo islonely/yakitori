@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="account-layout wrap">
+    <aside class="account-nav" aria-label="Account">
+        <a href="{% url 'dashboard:home' %}" class="{% if request.resolver_match.url_name == 'home' %}active{% endif %}">Overview</a>
+    </aside>
+
+    <div class="account-main">
+        {% include "includes/messages.html" %}
+        {% block account_content %}{% endblock %}
+    </div>
+</div>
+{% endblock %}

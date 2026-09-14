@@ -1,0 +1,60 @@
+{% extends "dashboard/base.html" %}
+
+{% block title %}Account — {{ platform_name }}{% endblock %}
+
+{% block account_content %}
+<h1>Account</h1>
+
+<div class="card">
+    <h2>Identity</h2>
+    <table>
+        <tr><th>Email</th><td>{{ user.email }}</td></tr>
+        <tr>
+            <th>Status</th>
+            <td><span class="badge badge-{{ user.status }}">{{ user.get_status_display }}</span></td>
+        </tr>
+        <tr>
+            <th>Email verified</th>
+            <td>{% if user.email_verified_at %}Yes{% else %}No{% endif %}</td>
+        </tr>
+        <tr><th>Member since</th><td>{{ user.created_at|date:"j M Y" }}</td></tr>
+    </table>
+</div>
+
+<div class="card">
+    <h2>Authorized devices</h2>
+    {% if tokens %}
+        <table>
+            <thead>
+                <tr><th>Device</th><th>Created</th><th>Last used</th><th></th></tr>
+            </thead>
+            <tbody>
+                {% for token in tokens %}
+                    <tr>
+                        <td>{{ token.label|default:"Yakitori for Mac" }}</td>
+                        <td>{{ token.created_at|date:"j M Y" }}</td>
+                        <td>{{ token.last_used_at|default:"never" }}</td>
+                        <td>
+                            <form method="post" action="{% url 'dashboard:revoke-token' token.id %}">
+                                {% csrf_token %}
+                                <button type="submit" class="link-button">Revoke</button>
+                            </form>
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% else %}
+        <p>No devices are authorized yet. Sign in from {{ product_name }} to add one.</p>
+    {% endif %}
+</div>
+
+<div class="card">
+    <h2>Sign out everywhere</h2>
+    <p>Revoke every device credential and end this browser session.</p>
+    <form method="post" action="{% url 'dashboard:revoke-all-tokens' %}">
+        {% csrf_token %}
+        <button type="submit" class="button button-danger">Sign out everywhere</button>
+    </form>
+</div>
+{% endblock %}

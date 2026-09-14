@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+
+{% block title %}Authorize a Mac — {{ platform_name }}{% endblock %}
+
+{% block content %}
+<section class="wrap page">
+    <h1>Authorize a new Mac</h1>
+    <p class="lede">
+        A {{ product_name }} installation is requesting access to your account.
+        Approve only if you started this on your own Mac.
+    </p>
+
+    {% if error %}<div class="message error">{{ error }}</div>{% endif %}
+
+    <form method="post" action="{% url 'accounts:device-authorize' %}">
+        {% csrf_token %}
+        <label for="user_code">Device code</label>
+        <input
+            type="text"
+            id="user_code"
+            name="user_code"
+            value="{{ user_code }}"
+            required
+            autofocus
+            autocomplete="off"
+            autocapitalize="characters"
+            spellcheck="false"
+        >
+        <p class="cta-row">
+            <button class="button" type="submit" name="action" value="approve">Approve</button>
+            <button class="button button-ghost" type="submit" name="action" value="deny">Deny</button>
+        </p>
+    </form>
+
+    <p class="fine-print">
+        Approving grants the app an access token stored in your Mac's Keychain.
+        Your license is never tied to this machine.
+    </p>
+</section>
+{% endblock %}

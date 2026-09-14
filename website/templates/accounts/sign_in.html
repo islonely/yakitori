@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+
+{% block title %}Sign in — {{ platform_name }}{% endblock %}
+
+{% block content %}
+<section class="wrap page">
+    <h1>Sign in</h1>
+    <p class="lede">We email you a single-use link and code. There is no password.</p>
+
+    {% if error %}<div class="message error">{{ error }}</div>{% endif %}
+
+    <form method="post" action="{% url 'accounts:sign-in' %}">
+        {% csrf_token %}
+        <input type="hidden" name="next" value="{{ request.GET.next }}">
+        <label for="email">Email address</label>
+        <input type="email" id="email" name="email" required autofocus autocomplete="email">
+        <p><button class="button" type="submit">Email me a sign-in link</button></p>
+    </form>
+
+    <p class="fine-print">
+        New here? <a href="{% url 'accounts:sign-up' %}">Create an account</a>.
+        Already have a code? <a href="{% url 'accounts:sign-in-code' %}">Enter it here</a>.
+    </p>
+</section>
+{% endblock %}
