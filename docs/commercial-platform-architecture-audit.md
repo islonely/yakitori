@@ -182,6 +182,7 @@ boundaries are implemented as separate Django apps sharing a `user_id`:
 | Append-only audit events | `audit` |
 | Public marketing / legal pages | `web` |
 | Authenticated account area (HTML) | `dashboard` |
+| Administrative API (staff-only, audited) | `adminconsole` |
 
 No giant "User" object holds commerce or profile data.
 
