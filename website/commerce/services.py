@@ -14,11 +14,15 @@ from django.utils import timezone
 from audit.models import AuditEvent
 from audit.services import record
 
-from .models import PaymentPurchase, WebhookEvent
+from .models import PaymentPurchase, PurchaseClaim, WebhookEvent
 from .providers import EventKind, ProviderError, get_provider
 from .signals import purchase_event
 
 logger = logging.getLogger(__name__)
+
+
+class ClaimError(Exception):
+    pass
 
 
 def start_purchase(user):
@@ -178,6 +182,100 @@ def process_webhook(request, provider=None):
     webhook.processed_at = timezone.now()
     webhook.save(update_fields=["status", "processed_at"])
     return webhook, True
+
+
+def _find_purchase_by_reference(reference):
+    ref = (reference or "").strip()
+    if not ref:
+        return None
+
+    try:
+        purchase_id = uuid.UUID(ref)
+    except (ValueError, AttributeError):
+        purchase_id = None
+
+    if purchase_id is not None:
+        found = PaymentPurchase.objects.filter(pk=purchase_id).first()
+        if found is not None:
+            return found
+
+    return (
+        PaymentPurchase.objects.filter(provider_purchase_id=ref).first()
+        or PaymentPurchase.objects.filter(provider_checkout_id=ref).first()
+    )
+
+
+def request_claim(user, reference, note=""):
+    """Create a review request to associate a purchase with an account.
+
+    Nothing is associated automatically; an administrator must approve.
+    """
+    purchase = _find_purchase_by_reference(reference)
+    if purchase is None:
+        return None, False
+    if purchase.user_id == user.pk:
+        raise ClaimError("This purchase is already associated with your account.")
+
+    claim, created = PurchaseClaim.objects.get_or_create(
+        user=user,
+        purchase=purchase,
+        defaults={"note": (note or "")[:2000]},
+    )
+    return claim, created
+
+
+def approve_claim(claim, admin):
+    with transaction.atomic():
+        claim = PurchaseClaim.objects.select_for_update().get(pk=claim.pk)
+        if claim.status != PurchaseClaim.Status.PENDING:
+            raise ClaimError("This claim has already been resolved.")
+
+        claim.status = PurchaseClaim.Status.APPROVED
+        claim.resolved_at = timezone.now()
+        claim.resolved_by = admin
+        claim.save(update_fields=["status", "resolved_at", "resolved_by"])
+
+        purchase = claim.purchase
+        purchase.user = claim.user
+        purchase.save(update_fields=["user", "updated_at"])
+
+    # A completed purchase becomes a license once it belongs to an account.
+    if purchase.status == PaymentPurchase.Status.COMPLETED:
+        from licensing.services import grant_lifetime_license
+
+        grant_lifetime_license(purchase)
+
+    record(
+        AuditEvent.Type.PURCHASE_ASSOCIATED,
+        actor=admin,
+        target=claim.user,
+        source="admin",
+        purchase=str(purchase.id),
+    )
+    return claim
+
+
+def reject_claim(claim, admin, note=""):
+    with transaction.atomic():
+        claim = PurchaseClaim.objects.select_for_update().get(pk=claim.pk)
+        if claim.status != PurchaseClaim.Status.PENDING:
+            raise ClaimError("This claim has already been resolved.")
+        claim.status = PurchaseClaim.Status.REJECTED
+        claim.resolved_at = timezone.now()
+        claim.resolved_by = admin
+        if note:
+            claim.note = (claim.note + "\n" + note)[:2000]
+        claim.save(update_fields=["status", "resolved_at", "resolved_by", "note"])
+
+    record(
+        AuditEvent.Type.ADMIN_ACTION,
+        actor=admin,
+        target=claim.user,
+        source="admin",
+        action="purchase_claim_rejected",
+        purchase=str(claim.purchase_id),
+    )
+    return claim
 
 
 def simulate_event(purchase, kind, amount=None):

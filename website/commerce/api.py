@@ -1,5 +1,5 @@
 from accounts.auth import api_login_required
-from common.jsonapi import ApiError, api_endpoint, json_response
+from common.jsonapi import ApiError, api_endpoint, json_body, json_response
 from common.ratelimit import enforce
 
 from . import services
@@ -50,3 +50,24 @@ def checkout(request):
 def purchases(request):
     items = request.api_user.purchases.order_by("-created_at")
     return json_response({"purchases": [serialize_purchase(p) for p in items]})
+
+
+@api_endpoint(["POST"])
+@api_login_required
+def create_claim(request):
+    """Request review of a purchase-to-account association.
+
+    The response is uniform whether or not the reference exists, so the
+    endpoint cannot be used to probe for valid purchase references.
+    """
+    enforce(request, "purchase-claim", scope=f"user:{request.api_user.pk}")
+    body = json_body(request)
+    try:
+        services.request_claim(
+            request.api_user,
+            body.get("reference", ""),
+            body.get("note", ""),
+        )
+    except services.ClaimError as exc:
+        raise ApiError(409, "already_owned", str(exc))
+    return json_response({"submitted": True}, status=202)

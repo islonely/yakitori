@@ -64,6 +64,60 @@ class PaymentPurchase(models.Model):
         return f"{self.provider}:{self.provider_purchase_id or self.id}"
 
 
+class PurchaseClaim(models.Model):
+    """A request to associate a purchase with an account.
+
+    Claims are never auto-approved: ambiguous ownership goes to an
+    administrator. This is what prevents "I know your email, therefore I own
+    your purchase".
+    """
+
+    class Status(models.TextChoices):
+        PENDING = "pending", "Pending"
+        APPROVED = "approved", "Approved"
+        REJECTED = "rejected", "Rejected"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="purchase_claims",
+    )
+    purchase = models.ForeignKey(
+        PaymentPurchase,
+        on_delete=models.CASCADE,
+        related_name="claims",
+    )
+
+    status = models.CharField(
+        max_length=20, choices=Status.choices, default=Status.PENDING
+    )
+    note = models.TextField(max_length=2000, blank=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    resolved_at = models.DateTimeField(null=True, blank=True)
+    resolved_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="purchase_claims_resolved",
+    )
+
+    class Meta:
+        ordering = ("-created_at",)
+        constraints = [
+            models.UniqueConstraint(
+                fields=["user", "purchase"],
+                name="unique_purchase_claim",
+            ),
+        ]
+
+    def __str__(self):
+        return f"claim:{self.user_id}:{self.purchase_id}:{self.status}"
+
+
 class WebhookEvent(models.Model):
     """Inbound provider event, stored for idempotency and debugging.
 

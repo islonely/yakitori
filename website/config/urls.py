@@ -37,6 +37,7 @@ urlpatterns = [
     path("v1/", include("licensing.api_urls")),
     path("v1/", include("social.api_urls")),
     path("v1/", include("leaderboards.api_urls")),
+    path("v1/", include("adminconsole.api_urls")),
 
     # Public marketing and legal pages (catch-all, keep last).
     path("", include("web.urls")),

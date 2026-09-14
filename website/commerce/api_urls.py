@@ -7,4 +7,5 @@ app_name = "commerce-api"
 urlpatterns = [
     path("checkout", api.checkout, name="checkout"),
     path("me/purchases", api.purchases, name="purchases"),
+    path("me/purchase-claims", api.create_claim, name="purchase-claims"),
 ]

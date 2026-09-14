@@ -4,8 +4,10 @@ from django.test import TestCase, override_settings
 
 from accounts.models import User
 
+from licensing.models import License
+
 from . import services
-from .models import PaymentPurchase, WebhookEvent
+from .models import PaymentPurchase, PurchaseClaim, WebhookEvent
 from .providers import EventKind, ProviderError, get_provider
 from .providers.mock import build_event, sign_payload
 
@@ -166,3 +168,68 @@ class CommerceApiTests(TestCase):
         response = self.client.get("/v1/me/purchases")
         self.assertEqual(response.status_code, 200)
         self.assertEqual(len(response.json()["purchases"]), 1)
+
+
+class PurchaseClaimTests(TestCase):
+    def setUp(self):
+        self.owner = User.objects.create_user(email="owner@example.com")
+        self.claimant = User.objects.create_user(email="claimant@example.com")
+        self.admin = User.objects.create_superuser(
+            email="admin@example.com", password="x"
+        )
+
+        self.purchase, _checkout = services.start_purchase(self.owner)
+        services.simulate_event(self.purchase, EventKind.PURCHASE_COMPLETED)
+
+    def test_claim_is_never_auto_associated(self):
+        claim, created = services.request_claim(
+            self.claimant, str(self.purchase.id)
+        )
+        self.assertTrue(created)
+        self.assertEqual(claim.status, PurchaseClaim.Status.PENDING)
+
+        self.purchase.refresh_from_db()
+        self.assertEqual(self.purchase.user, self.owner)
+        self.assertFalse(License.objects.filter(user=self.claimant).exists())
+
+    def test_approval_moves_purchase_and_grants_license(self):
+        claim, _created = services.request_claim(
+            self.claimant, str(self.purchase.id)
+        )
+        services.approve_claim(claim, self.admin)
+
+        self.purchase.refresh_from_db()
+        self.assertEqual(self.purchase.user, self.claimant)
+        self.assertTrue(License.objects.filter(user=self.claimant).exists())
+
+    def test_rejection_keeps_ownership(self):
+        claim, _created = services.request_claim(
+            self.claimant, str(self.purchase.id)
+        )
+        services.reject_claim(claim, self.admin)
+        self.purchase.refresh_from_db()
+        self.assertEqual(self.purchase.user, self.owner)
+
+    def test_unknown_reference_creates_nothing(self):
+        claim, created = services.request_claim(self.claimant, "does-not-exist")
+        self.assertIsNone(claim)
+        self.assertFalse(created)
+
+    def test_cannot_claim_own_purchase(self):
+        with self.assertRaises(services.ClaimError):
+            services.request_claim(self.owner, str(self.purchase.id))
+
+    def test_claim_endpoint_is_uniform(self):
+        self.client.force_login(self.claimant)
+        real = self.client.post(
+            "/v1/me/purchase-claims",
+            data=json.dumps({"reference": str(self.purchase.id)}),
+            content_type="application/json",
+        )
+        fake = self.client.post(
+            "/v1/me/purchase-claims",
+            data=json.dumps({"reference": "nope"}),
+            content_type="application/json",
+        )
+        self.assertEqual(real.status_code, 202)
+        self.assertEqual(fake.status_code, 202)

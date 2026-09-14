@@ -2,9 +2,10 @@ from django.contrib import messages
 from django.contrib.auth import logout
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import redirect, render
-from django.views.decorators.http import require_POST
+from django.views.decorators.http import require_http_methods, require_POST
 
 from accounts.services import revoke_all_tokens, revoke_api_token
+from commerce import services as commerce_services
 
 
 @login_required
@@ -15,6 +16,33 @@ def home(request):
         .order_by("-created_at")
     )
     return render(request, "dashboard/home.html", {"tokens": tokens})
+
+
+@login_required
+@require_http_methods(["GET", "POST"])
+def claim_purchase(request):
+    error = None
+    submitted = False
+
+    if request.method == "POST":
+        reference = request.POST.get("reference", "").strip()
+        if not reference:
+            error = "Enter a purchase reference."
+        else:
+            try:
+                commerce_services.request_claim(
+                    request.user, reference, request.POST.get("note", "")
+                )
+            except commerce_services.ClaimError as exc:
+                error = str(exc)
+            else:
+                submitted = True
+
+    return render(
+        request,
+        "dashboard/claim.html",
+        {"error": error, "submitted": submitted},
+    )
 
 
 @login_required

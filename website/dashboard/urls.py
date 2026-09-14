@@ -6,6 +6,7 @@ app_name = "dashboard"
 
 urlpatterns = [
     path("", views.home, name="home"),
+    path("claim/", views.claim_purchase, name="claim"),
     path("tokens/<uuid:token_id>/revoke/", views.revoke_token, name="revoke-token"),
     path("tokens/revoke-all/", views.revoke_all_tokens_view, name="revoke-all-tokens"),
 ]

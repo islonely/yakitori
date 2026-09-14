@@ -87,6 +87,7 @@ INSTALLED_APPS = [
     "audit",
     "web",
     "dashboard",
+    "adminconsole",
 ]
 
 MIDDLEWARE = [

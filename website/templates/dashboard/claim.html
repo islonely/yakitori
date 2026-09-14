@@ -1,0 +1,31 @@
+{% extends "dashboard/base.html" %}
+
+{% block title %}Claim a purchase — {{ platform_name }}{% endblock %}
+
+{% block account_content %}
+<h1>Claim a purchase</h1>
+<p class="lede">
+    If you purchased {{ product_name }} and the license is not attached to this
+    account, submit the purchase reference. A human reviews every claim — this
+    is never done automatically.
+</p>
+
+{% if error %}<div class="message error">{{ error }}</div>{% endif %}
+{% if submitted %}
+    <div class="message success">
+        Received. We will review the claim and attach the license if it checks out.
+    </div>
+{% endif %}
+
+<form method="post" action="{% url 'dashboard:claim' %}">
+    {% csrf_token %}
+    <label for="reference">Purchase reference</label>
+    <input type="text" id="reference" name="reference" required autocomplete="off">
+    <p class="fine-print">The receipt or order reference from your purchase email.</p>
+
+    <label for="note">Note (optional)</label>
+    <textarea id="note" name="note" maxlength="2000"></textarea>
+
+    <p><button class="button" type="submit">Submit claim</button></p>
+</form>
+{% endblock %}
