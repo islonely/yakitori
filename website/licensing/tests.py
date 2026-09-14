@@ -130,6 +130,12 @@ class AuthorizationTests(TestCase):
         self.assertFalse(result["valid"])
         self.assertEqual(result["reason"], "installation_not_registered")
 
+    def test_authorization_fails_with_wrong_public_key(self):
+        result = services.validate_license(self.user, self.installation)
+        wrong_key = "A" * 43  # base64url of 32 zero bytes
+        with self.assertRaises(SigningError):
+            verify_authorization(result["authorization"], wrong_key)
+
     def test_tampered_authorization_fails_verification(self):
         result = services.validate_license(self.user, self.installation)
         header, payload, signature = result["authorization"].split(".")

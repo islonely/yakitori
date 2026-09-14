@@ -1,12 +1,14 @@
 import json
+import uuid
 
-from django.test import Client, TestCase
+from django.test import Client, TestCase, override_settings
 
 from accounts.models import User
 from audit.models import AuditEvent
 from commerce import services as commerce_services
 from commerce.providers import EventKind
-from licensing.models import License
+from licensing import services as licensing_services
+from licensing.models import Installation, License
 from profiles.services import set_username
 from social import services as social_services
 from social.models import Report
@@ -132,3 +134,107 @@ class AdminActionTests(TestCase):
         approve = self.client.post(f"/v1/admin/purchase-claims/{claim_id}/approve")
         self.assertEqual(approve.status_code, 200)
         self.assertTrue(License.objects.filter(user=claimant).exists())
+
+
+class SecurityHardeningTests(TestCase):
+    def setUp(self):
+        self.alice = User.objects.create_user(email="alice@example.com")
+        self.bob = User.objects.create_user(email="bob@example.com")
+
+    def test_security_headers_present(self):
+        response = self.client.get("/healthz")
+        self.assertIn("Content-Security-Policy", response)
+        self.assertEqual(response["X-Content-Type-Options"], "nosniff")
+        self.assertEqual(response["X-Frame-Options"], "DENY")
+        self.assertEqual(response["Referrer-Policy"], "same-origin")
+
+    def test_csrf_is_enforced_on_html_forms(self):
+        csrf_client = Client(enforce_csrf_checks=True)
+        response = csrf_client.post("/sign-out/")
+        self.assertEqual(response.status_code, 403)
+
+    def test_malformed_json_body_rejected(self):
+        self.client.force_login(self.alice)
+        response = self.client.patch(
+            "/v1/me/profile",
+            data="[1, 2, 3]",
+            content_type="application/json",
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.json()["error"]["code"], "invalid_json")
+
+    def test_idor_cannot_revoke_another_users_installation(self):
+        installation, _created = licensing_services.register_installation(
+            self.bob, uuid.uuid4()
+        )
+
+        self.client.force_login(self.alice)
+        response = self.client.delete(
+            f"/v1/me/installations/{installation.installation_id}"
+        )
+        self.assertEqual(response.status_code, 404)
+
+        installation.refresh_from_db()
+        self.assertTrue(installation.is_active)
+        self.assertEqual(installation.user, self.bob)
+
+    def test_profile_update_cannot_escalate_privileges(self):
+        self.client.force_login(self.alice)
+        response = self.client.patch(
+            "/v1/me/profile",
+            data='{"is_staff": true, "is_superuser": true}',
+            content_type="application/json",
+        )
+        self.assertEqual(response.status_code, 400)
+
+        self.alice.refresh_from_db()
+        self.assertFalse(self.alice.is_staff)
+        self.assertFalse(self.alice.is_superuser)
+
+    def test_suspended_user_token_stops_working(self):
+        from accounts import services as account_services
+
+        raw_token, _token = account_services.issue_api_token(self.alice, label="Mac")
+        self.assertEqual(
+            self.client.get("/v1/me", HTTP_AUTHORIZATION=f"Bearer {raw_token}").status_code,
+            200,
+        )
+
+        self.alice.status = User.Status.SUSPENDED
+        self.alice.save(update_fields=["status", "is_active", "updated_at"])
+
+        self.assertEqual(
+            self.client.get("/v1/me", HTTP_AUTHORIZATION=f"Bearer {raw_token}").status_code,
+            401,
+        )
+
+    def test_sql_injection_in_admin_search_is_inert(self):
+        admin = User.objects.create_superuser(email="admin@example.com", password="x")
+        self.client.force_login(admin)
+        response = self.client.get("/v1/admin/users?q=%27%20OR%201%3D1--")
+        self.assertEqual(response.status_code, 200)
+        # Parameterized queries mean the string is data, not SQL: nobody matches.
+        self.assertEqual(response.json()["users"], [])
+
+    def test_login_rate_limit_caps_challenges(self):
+        from accounts.models import LoginChallenge
+
+        with override_settings(
+            RATE_LIMIT_DEFAULTS={"login-request": (3, 3600)},
+            EMAIL_PROVIDER="smtp",
+            EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend",
+        ):
+            for index in range(6):
+                self.client.post("/sign-in/", {"email": f"user{index}@example.com"})
+
+        # The per-IP limit stops new challenges once exceeded.
+        self.assertLessEqual(LoginChallenge.objects.count(), 3)
+
+    def test_webhook_rejects_malformed_body(self):
+        response = self.client.post(
+            "/v1/webhooks/stripe",
+            data="not json",
+            content_type="application/json",
+            HTTP_X_MOCK_SIGNATURE="bad",
+        )
+        self.assertEqual(response.status_code, 400)
