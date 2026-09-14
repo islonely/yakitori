@@ -7,8 +7,7 @@ statistics, and presents analytics — **without ever recording the words you ty
 > Track the writer, not the writing.
 
 This repository implements the product described in
-[`DESIGN_DOCUMENT.md`](DESIGN_DOCUMENT.md) and the
-[`IMPLEMENTATION_ROADMAP.md`](IMPLEMENTATION_ROADMAP.md).
+[`DESIGN_DOCUMENT.md`](DESIGN_DOCUMENT.md).
 
 Repository: https://github.com/islonely/yakitori
 
