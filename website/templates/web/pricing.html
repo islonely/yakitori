@@ -4,24 +4,29 @@
 
 {% block content %}
 <section class="wrap page">
-    <span class="eyebrow">Lifetime license</span>
-    <h1>One price, owned forever</h1>
+    <span class="eyebrow">Pricing</span>
+    <h1>Try free, then own it forever</h1>
     <p class="lede">
         Try everything free for 14 days, then own it forever with a perpetual,
         non-expiring license. Unlimited Mac installations, tied to your account
         rather than to a device.
     </p>
 
-    {% include "web/_trial_vs_license.html" %}
+    {% include "web/_trial.html" %}
 
     <div class="price-card">
+        <span class="eyebrow">Lifetime license</span>
         <div class="price"><span class="currency">{{ product_currency_symbol }}</span>{% widthratio product_price_amount 100 1 %}<span class="fine-print">.00</span></div>
-        <p class="price-note">one-time purchase &middot; lifetime license</p>
+        <p class="price-note">one-time purchase &middot; kept forever</p>
         <ul class="check-list">
-            <li>Exact word counts in Word and Pages</li>
-            <li>Unlimited Macs under one account</li>
+            <li>Keep tracking after the trial ends</li>
+            <li>Full history and lifetime statistics</li>
+            <li>Calendar heatmap and streaks</li>
+            <li>Goals, reports, and achievements</li>
+            <li>All analytics charts and unlimited projects</li>
+            <li>Exports and backups</li>
             <li>Works offline; no subscription</li>
-            <li>Refunds handled through the payment provider</li>
+            <li>Unlimited Macs under one account</li>
         </ul>
         <a class="button" href="{% url 'commerce:buy' %}">Buy {{ product_name }}</a>
     </div>
