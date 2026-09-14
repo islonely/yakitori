@@ -76,10 +76,12 @@ public final class WordAdapter: AppleScriptAdapter {
         var words: Int?
         var characters: Int?
         var pages: Int?
-        if includeStats, parts.count >= 5 {
+        if includeStats, parts.count >= 4 {
             words = Int(parts[2].trimmingCharacters(in: .whitespaces))
             characters = Int(parts[3].trimmingCharacters(in: .whitespaces))
-            pages = Int(parts[4].trimmingCharacters(in: .whitespaces))
+            if parts.count >= 5 {
+                pages = Int(parts[4].trimmingCharacters(in: .whitespaces))
+            }
         }
         return ActiveDocumentInfo(
             displayName: name,

@@ -19,6 +19,16 @@ final class AdapterTests: XCTestCase {
         XCTAssertNil(info?.wordCount)
     }
 
+    /// Regression: the adapter script no longer requests pages, so it returns a
+    /// four-field line. The parser must still read words and characters.
+    func testWordDocumentLineParsingWithoutPages() {
+        let line = "Naphtali.docx|||/Users/x/Naphtali.docx|||34735|||157678"
+        let info = WordAdapter.parseDocumentLine(line)
+        XCTAssertEqual(info?.wordCount, 34_735)
+        XCTAssertEqual(info?.characterCount, 157_678)
+        XCTAssertNil(info?.pageCount)
+    }
+
     func testWordParserRejectsEmptyOrMalformedLines() {
         XCTAssertNil(WordAdapter.parseDocumentLine(""))
         XCTAssertNil(WordAdapter.parseDocumentLine("|||"))
