@@ -118,6 +118,10 @@ struct PrivacyView: View {
         .cardStyle()
     }
 
+    private var databaseURL: URL? {
+        state.container.database.filePath.map { URL(fileURLWithPath: $0) }
+    }
+
     private var dataSection: some View {
         VStack(alignment: .leading, spacing: 10) {
             SectionHeader(title: "Where your data lives")
@@ -130,13 +134,20 @@ struct PrivacyView: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
-            Text(verbatim: AppPaths.databaseURL.path)
-                .font(.system(.caption, design: .monospaced))
-                .textSelection(.enabled)
+            Text("Each account has its own database, so signing in as someone else on this Mac shows separate data.")
+                .font(.caption)
                 .foregroundStyle(.secondary)
+            if let databaseURL {
+                Text(verbatim: databaseURL.path)
+                    .font(.system(.caption, design: .monospaced))
+                    .textSelection(.enabled)
+                    .foregroundStyle(.secondary)
+            }
             HStack(spacing: 10) {
                 Button("Reveal Database") {
-                    NSWorkspace.shared.activateFileViewerSelecting([AppPaths.databaseURL])
+                    if let databaseURL {
+                        NSWorkspace.shared.activateFileViewerSelecting([databaseURL])
+                    }
                 }
                 Button("Export / Back Up…") {
                     state.selectedSection = .settings

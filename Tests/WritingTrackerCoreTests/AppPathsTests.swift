@@ -89,6 +89,49 @@ final class AppPathsTests: XCTestCase {
         )
     }
 
+    func testAccountDatabasesAreSeparated() {
+        let base = scratch.appendingPathComponent("base", isDirectory: true)
+        let accountA = AppPaths.databaseURL(forAccountKey: "account-a", baseDirectory: base)
+        let accountB = AppPaths.databaseURL(forAccountKey: "account-b", baseDirectory: base)
+
+        XCTAssertNotEqual(accountA, accountB)
+        XCTAssertTrue(accountA.path.contains("/Accounts/account-a/"))
+        XCTAssertTrue(accountB.path.contains("/Accounts/account-b/"))
+        XCTAssertEqual(accountA.lastPathComponent, "Yakitori.sqlite")
+    }
+
+    func testAccountKeySanitization() {
+        XCTAssertEqual(AppPaths.sanitizedAccountKey(nil), "local")
+        XCTAssertEqual(AppPaths.sanitizedAccountKey(""), "local")
+        XCTAssertEqual(AppPaths.sanitizedAccountKey("a/b"), "a_b")
+        XCTAssertEqual(AppPaths.sanitizedAccountKey("abc"), "abc")
+    }
+
+    func testLegacyDatabaseIsAdoptedByOnlyTheFirstAccount() throws {
+        let base = scratch.appendingPathComponent("base", isDirectory: true)
+        try fileManager.createDirectory(at: base, withIntermediateDirectories: true)
+        try Data("legacy".utf8).write(to: base.appendingPathComponent("Yakitori.sqlite"))
+        try Data("{}".utf8).write(to: base.appendingPathComponent("community.json"))
+
+        let first = AppPaths.databaseURL(forAccountKey: "account-a", baseDirectory: base)
+        XCTAssertTrue(fileManager.fileExists(atPath: first.path))
+        XCTAssertEqual(try Data(contentsOf: first), Data("legacy".utf8))
+        XCTAssertTrue(
+            fileManager.fileExists(
+                atPath: base.appendingPathComponent(".legacy-data-adopted").path
+            )
+        )
+
+        // A second account starts empty, and the original legacy file remains.
+        let second = AppPaths.databaseURL(forAccountKey: "account-b", baseDirectory: base)
+        XCTAssertFalse(fileManager.fileExists(atPath: second.path))
+        XCTAssertTrue(
+            fileManager.fileExists(
+                atPath: base.appendingPathComponent("Yakitori.sqlite").path
+            )
+        )
+    }
+
     func testShouldUseICloudHonorsEnvironmentAndDefaultsOn() {
         XCTAssertFalse(
             AppPaths.shouldUseICloud(

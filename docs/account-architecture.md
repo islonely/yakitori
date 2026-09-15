@@ -145,6 +145,15 @@ Signing in is required to start the 14-day free trial (see
 `docs/licensing-architecture.md`), because the server must be able to tell
 whether an account has already used it.
 
+**Writing data is scoped per account.** Each account gets its own database,
+backups, and community file under `Accounts/<account-id>/` in the data
+directory (see `AppPaths.databaseURL(forAccountKey:)`). When the signed-in
+account changes, the app tears down the current tracking engine and rebuilds the
+data container against the new account's database; account/licensing services
+stay stable. Data created before account scoping existed is copied into the
+first account that signs in (a one-time, non-destructive adoption) and the
+original files are kept.
+
 Because an account is the entry point, a signed-out user sees a dedicated
 **welcome gate** (`UI/Account/WelcomeView.swift`) instead of the main interface,
 with the device sign-in flow in front of them. Once signed in, the normal app

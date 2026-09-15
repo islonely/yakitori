@@ -4,6 +4,8 @@ import Foundation
 /// together. The UI depends only on this container (never directly on SQLite).
 public final class AppContainer {
     public let database: Database
+    /// The folder for this account's data (database, backups, community file).
+    public let dataDirectory: URL
     public let permissionProvider: PermissionProviding
     public let dateProvider: DateProviding
     public let calendarContext: CalendarContext
@@ -20,8 +22,6 @@ public final class AppContainer {
     public let notifications: NotificationService
     public let association: ProjectAssociationService
     public let social: SocialService
-    public let account: AccountService
-    public let licensing: LicensingService
     public let trackingEngine: TrackingEngine
     public let settingsRepository: SettingsRepository
     public let applicationRepository: WritingApplicationRepository
@@ -30,15 +30,15 @@ public final class AppContainer {
 
     public init(
         database: Database,
+        dataDirectory: URL = AppPaths.dataDirectory,
         permissionProvider: PermissionProviding = PermissionManager(),
         dateProvider: DateProviding = SystemDateProvider(),
         calendarContext: CalendarContext = CalendarContext(),
         registry: AdapterRegistry = .shared,
-        idleProvider: SystemIdleProviding = CGSystemIdleProvider(),
-        platformConfiguration: PlatformConfiguration = .fromBundle(),
-        secretStore: SecretStoring = KeychainSecretStore()
+        idleProvider: SystemIdleProviding = CGSystemIdleProvider()
     ) {
         self.database = database
+        self.dataDirectory = dataDirectory
         self.permissionProvider = permissionProvider
         self.dateProvider = dateProvider
         self.calendarContext = calendarContext
@@ -53,20 +53,21 @@ public final class AppContainer {
         self.sessions = SessionService(database: database, statistics: statistics)
         self.reports = ReportService(statistics: statistics, dateProvider: dateProvider, calendarContext: calendarContext)
         self.export = ExportService(database: database, statistics: statistics, dateProvider: dateProvider)
-        self.backup = BackupService(database: database, dateProvider: dateProvider)
+        self.backup = BackupService(
+            database: database,
+            databaseURL: database.filePath.map { URL(fileURLWithPath: $0) },
+            backupsDirectory: dataDirectory.appendingPathComponent("Backups", isDirectory: true),
+            dateProvider: dateProvider
+        )
         self.dataManagement = DataManagementService(database: database, backupService: backup, statistics: statistics)
         self.notifications = NotificationService(database: database)
         self.association = ProjectAssociationService(database: database)
-        self.social = SocialService(database: database, statistics: statistics, dateProvider: dateProvider)
-        self.account = AccountService(
-            configuration: platformConfiguration,
-            transport: URLSessionTransport(),
-            secrets: secretStore
-        )
-        self.licensing = LicensingService(
-            configuration: platformConfiguration,
-            transport: URLSessionTransport(),
-            secrets: secretStore,
+        self.social = SocialService(
+            database: database,
+            statistics: statistics,
+            backend: JSONFileSocialBackend(
+                url: dataDirectory.appendingPathComponent("community.json")
+            ),
             dateProvider: dateProvider
         )
         self.trackingEngine = TrackingEngine(

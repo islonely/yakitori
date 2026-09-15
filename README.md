@@ -265,6 +265,10 @@ export, backup, and destructive-operation safety.
   trial** or attach a lifetime license. Once entitled, tracking works fully
   offline. Recording new sessions requires an active license or trial; existing
   data always stays viewable and exportable, and nothing local is deleted.
+- Data is **scoped per account**: each account has its own database (and
+  backups/community file), so signing in as a different account on the same Mac
+  shows entirely separate history and statistics. Signing out shows none of it.
+  Data from before this change is adopted by the first account you sign into.
 - Data is stored in **iCloud Drive** when it is available so statistics sync
   between your Macs; otherwise it stays in
   `~/Library/Application Support/Yakitori`. Writing data is never sent to

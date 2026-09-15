@@ -62,7 +62,7 @@ struct AccountView: View {
             labeledRow("Email", user.email)
             labeledRow("Status", user.status.capitalized)
             labeledRow("Email verified", user.emailVerified ? "Yes" : "No")
-            if let installationID = state.container.account.installationID {
+            if let installationID = state.accountService.installationID {
                 labeledRow("This Mac", installationID.uuidString)
             }
             HStack {

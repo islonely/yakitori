@@ -57,6 +57,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
             let container = AppState.shared.container
             let diagnostics = DiagnosticsService(
                 database: container.database,
+                databaseURL: container.database.filePath.map {
+                    URL(fileURLWithPath: $0)
+                },
                 permissionProvider: container.permissionProvider
             )
             let probe = ProcessInfo.processInfo.arguments.contains("--probe-word")

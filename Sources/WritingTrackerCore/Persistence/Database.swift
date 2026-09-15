@@ -117,10 +117,14 @@ public protocol Database: AnyObject {
     func scalar(_ sql: String, _ params: SQLParameters) throws -> SQLValue?
     func transaction<T>(_ body: () throws -> T) throws -> T
     var lastInsertRowID: Int64 { get }
+    /// On-disk location, or nil for an in-memory database.
+    var filePath: String? { get }
     func close()
 }
 
 public extension Database {
+    var filePath: String? { nil }
+
     @discardableResult
     func execute(_ sql: String) throws -> Int { try execute(sql, []) }
     func query(_ sql: String) throws -> [Row] { try query(sql, []) }

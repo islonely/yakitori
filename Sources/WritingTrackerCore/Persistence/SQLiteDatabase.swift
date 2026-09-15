@@ -13,6 +13,8 @@ public final class SQLiteDatabase: Database, @unchecked Sendable {
     private var transactionDepth = 0
     public let path: String
 
+    public var filePath: String? { path == ":memory:" ? nil : path }
+
     public init(path: String) throws {
         self.path = path
         try open()

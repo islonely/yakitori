@@ -15,9 +15,18 @@ final class TrackingModel: ObservableObject {
 final class AppState: ObservableObject {
     static let shared = AppState()
 
-    let container: AppContainer
-    let bootstrapError: Error?
+    /// Swapped when the signed-in account changes so each account has its own
+    /// database, backups, and community file.
+    private(set) var container: AppContainer
+    private var bootstrapError: Error?
     let tracking = TrackingModel()
+
+    // Stable across account switches.
+    let accountService: AccountService
+    let licensingService: LicensingService
+    let permissionProvider: PermissionProviding
+    let dateProvider: DateProviding
+    let calendarContext: CalendarContext
 
     @Published var settings: UserSettings
     @Published var permissionStatuses: [PermissionStatus] = []
@@ -42,25 +51,131 @@ final class AppState: ObservableObject {
     private var licenseTimerTask: Task<Void, Never>?
     private var lastLicenseRefresh = Date.distantPast
     private let globalHotkey = GlobalHotkey()
+    /// The account whose data is currently loaded (nil = signed out).
+    private var dataAccountKey: String?
+    private var hasActivatedDataScope = false
 
     private init() {
-        let (db, didFail) = Self.makeDatabase()
-        self.container = AppContainer(database: db)
-        self.bootstrapError = didFail
+        let configuration = PlatformConfiguration.fromBundle()
+        let secretStore = KeychainSecretStore()
+        self.accountService = AccountService(
+            configuration: configuration,
+            transport: URLSessionTransport(),
+            secrets: secretStore
+        )
+        self.licensingService = LicensingService(
+            configuration: configuration,
+            transport: URLSessionTransport(),
+            secrets: secretStore,
+            dateProvider: SystemDateProvider()
+        )
+        let permissions = PermissionManager()
+        self.permissionProvider = permissions
+        self.dateProvider = SystemDateProvider()
+        self.calendarContext = CalendarContext()
+
+        // Placeholder until the account (and therefore the data scope) is known.
+        // No real data is read or shown before `accountLoaded`.
+        let placeholder = try! SQLiteDatabase.inMemory()
+        _ = try? Migrator(database: placeholder).migrate()
+        self.container = AppContainer(
+            database: placeholder,
+            permissionProvider: permissions
+        )
         self.settings = container.settings
     }
 
-    private static func makeDatabase() -> (SQLiteDatabase, Error?) {
-        do {
-            let db = try SQLiteDatabase(path: AppPaths.databaseURL.path)
-            try Migrator(database: db).migrate()
-            return (db, nil)
-        } catch {
-            // Fall back to an in-memory database so the app still launches, but
-            // surface the problem rather than pretending data is saved.
+    /// Opens the data container for an account. `nil` means signed out, which
+    /// keeps data out of any persistent store.
+    private static func makeContainer(
+        accountKey: String?,
+        permissionProvider: PermissionProviding
+    ) -> (AppContainer, Error?) {
+        guard let accountKey else {
             let memory = try! SQLiteDatabase.inMemory()
             _ = try? Migrator(database: memory).migrate()
-            return (memory, error)
+            return (
+                AppContainer(database: memory, permissionProvider: permissionProvider),
+                nil
+            )
+        }
+
+        do {
+            let url = AppPaths.databaseURL(forAccountKey: accountKey)
+            let database = try SQLiteDatabase(path: url.path)
+            try Migrator(database: database).migrate()
+            return (
+                AppContainer(
+                    database: database,
+                    dataDirectory: AppPaths.accountDataDirectory(for: accountKey),
+                    permissionProvider: permissionProvider
+                ),
+                nil
+            )
+        } catch {
+            // Fall back to in-memory so the app still launches, but surface the
+            // problem rather than pretending data is saved.
+            let memory = try! SQLiteDatabase.inMemory()
+            _ = try? Migrator(database: memory).migrate()
+            return (
+                AppContainer(database: memory, permissionProvider: permissionProvider),
+                error
+            )
+        }
+    }
+
+    /// Loads the given account's data, rebuilding the container and engine.
+    /// Runs on first account resolution and whenever the account changes.
+    private func activateDataScope(for accountKey: String?) {
+        if hasActivatedDataScope && accountKey == dataAccountKey { return }
+
+        container.trackingEngine.endActiveSession()
+        container.trackingEngine.stop()
+
+        let (newContainer, error) = Self.makeContainer(
+            accountKey: accountKey,
+            permissionProvider: permissionProvider
+        )
+        container = newContainer
+        dataAccountKey = accountKey
+        hasActivatedDataScope = true
+        bootstrapError = error
+
+        wireContainerCallbacks()
+        newContainer.bootstrapIfNeeded()
+        newContainer.trackingEngine.setTrackingAllowed(licensingState.isUsable)
+        newContainer.trackingEngine.start()
+
+        settings = newContainer.settings
+        if isSignedIn && !settings.onboardingCompleted {
+            isOnboardingPresented = true
+        }
+        newContainer.notifications.requestAuthorizationIfNeeded()
+        configureGlobalHotkey()
+        refreshPermissions()
+        refresh()
+        tracking.snapshot = newContainer.trackingEngine.snapshot()
+
+        if let error {
+            alertMessage = "This account's database could not be opened. Running with temporary storage; data will not persist. \(error.localizedDescription)"
+        }
+    }
+
+    private func wireContainerCallbacks() {
+        let engine = container.trackingEngine
+        // Live updates are cheap and only touch the tracking model.
+        engine.onChange = { [weak self] in
+            Task { @MainActor in
+                guard let self else { return }
+                self.tracking.snapshot = self.container.trackingEngine.snapshot()
+            }
+        }
+        // Persisted-history updates invalidate data-driven views.
+        engine.onDataChange = { [weak self] in
+            Task { @MainActor in self?.refresh() }
+        }
+        engine.onSessionEnded = { [weak self] in
+            Task { @MainActor in self?.publishCommunityStats() }
         }
     }
 
@@ -69,42 +184,10 @@ final class AppState: ObservableObject {
     func start() {
         guard !isStarted else { return }
         isStarted = true
-        container.bootstrapIfNeeded()
-        settings = container.settings
-        if bootstrapError != nil {
-            alertMessage = "The database could not be opened. Running with temporary storage; data will not persist. \(bootstrapError?.localizedDescription ?? "")"
-        }
 
-        // Live updates are cheap and only touch the tracking model.
-        container.trackingEngine.onChange = { [weak self] in
-            Task { @MainActor in
-                guard let self else { return }
-                self.tracking.snapshot = self.container.trackingEngine.snapshot()
-            }
-        }
-        // Persisted-history updates invalidate data-driven views.
-        container.trackingEngine.onDataChange = { [weak self] in
-            Task { @MainActor in self?.refresh() }
-        }
-        container.trackingEngine.onSessionEnded = { [weak self] in
-            Task { @MainActor in self?.publishCommunityStats() }
-        }
-        container.permissionProvider.onChange = { [weak self] in
+        permissionProvider.onChange = { [weak self] in
             Task { @MainActor in self?.refreshPermissions() }
         }
-
-        // The engine always runs so manual sessions work even when automatic
-        // tracking-at-launch is disabled.
-        container.trackingEngine.start()
-
-        refreshPermissions()
-        refresh()
-        tracking.snapshot = container.trackingEngine.snapshot()
-
-        if !settings.onboardingCompleted {
-            isOnboardingPresented = true
-        }
-        container.notifications.requestAuthorizationIfNeeded()
         configureGlobalHotkey()
         configureAccount()
 
@@ -115,7 +198,7 @@ final class AppState: ObservableObject {
             queue: .main
         ) { [weak self] _ in
             Task { @MainActor in
-                self?.container.permissionProvider.refresh()
+                self?.permissionProvider.refresh()
                 self?.refreshPermissions()
                 self?.refreshLicenseIfStale()
             }
@@ -142,20 +225,20 @@ final class AppState: ObservableObject {
     // MARK: - Account and licensing
 
     private func configureAccount() {
-        container.account.onStateChange = { [weak self] state in
+        accountService.onStateChange = { [weak self] state in
             Task { @MainActor in self?.handleAccountState(state) }
         }
-        container.licensing.onStateChange = { [weak self] state in
+        licensingService.onStateChange = { [weak self] state in
             Task { @MainActor in
                 self?.licensingState = state
                 self?.applyEntitlement(state)
                 self?.scheduleEntitlementEvaluation()
             }
         }
-        accountState = container.account.state
+        accountState = accountService.state
         // Until a license or trial is confirmed, recording stays off. The
         // engine keeps running so existing data stays viewable.
-        applyEntitlement(container.licensing.state)
+        applyEntitlement(licensingService.state)
 
         // Restore a stored session and validate the license in the background.
         Task { await restoreAccountIfPossible() }
@@ -182,7 +265,7 @@ final class AppState: ObservableObject {
 
         let now = Date()
         let delay: TimeInterval
-        if let next = container.licensing.nextEvaluationDate(now: now) {
+        if let next = licensingService.nextEvaluationDate(now: now) {
             delay = max(30, next.timeIntervalSince(now) + 0.5)
         } else {
             // Offline grace with no fixed end: retry periodically.
@@ -192,7 +275,7 @@ final class AppState: ObservableObject {
         licenseTimerTask = Task { [weak self] in
             try? await Task.sleep(nanoseconds: UInt64(delay) * 1_000_000_000)
             guard !Task.isCancelled else { return }
-            await self?.container.licensing.refresh()
+            await self?.licensingService.refresh()
         }
     }
 
@@ -203,7 +286,7 @@ final class AppState: ObservableObject {
         guard now.timeIntervalSince(lastLicenseRefresh) > 60 else { return }
         guard isSignedIn else { return }
         lastLicenseRefresh = now
-        Task { await container.licensing.refresh() }
+        Task { await licensingService.refresh() }
     }
 
     /// True when the signed-in user has no active license or trial, so the
@@ -240,13 +323,19 @@ final class AppState: ObservableObject {
     }
 
     private func restoreAccountIfPossible() async {
-        let restored = await container.account.restoreSession()
-        accountState = container.account.state
+        let restored = await accountService.restoreSession()
+        accountState = accountService.state
         accountLoaded = true
-        if restored {
-            await container.licensing.refresh()
-        } else {
+
+        switch accountService.state {
+        case .signedIn(let user):
+            activateDataScope(for: user.id)
+            await licensingService.refresh()
+        case .signedOut:
+            activateDataScope(for: nil)
             licensingState = .signedOut
+        case .error:
+            activateDataScope(for: nil)
         }
     }
 
@@ -259,10 +348,13 @@ final class AppState: ObservableObject {
         accountState = state
         accountLoaded = true
         switch state {
-        case .signedIn:
-            Task { await container.licensing.refresh() }
+        case .signedIn(let user):
+            // Loading a different account's data is the whole point here.
+            activateDataScope(for: user.id)
+            Task { await licensingService.refresh() }
         case .signedOut:
-            Task { await container.licensing.setSignedIn(false) }
+            activateDataScope(for: nil)
+            Task { await licensingService.setSignedIn(false) }
         case .error:
             break
         }
@@ -272,7 +364,7 @@ final class AppState: ObservableObject {
         deviceSignInError = nil
         Task {
             do {
-                let authorization = try await container.account.beginSignIn()
+                let authorization = try await accountService.beginSignIn()
                 deviceAuthorization = authorization
                 isDeviceSignInPresented = true
                 let urlString = authorization.verificationUriComplete ?? authorization.verificationUri
@@ -297,7 +389,7 @@ final class AppState: ObservableObject {
                 if Task.isCancelled { return }
 
                 do {
-                    let result = try await self.container.account.pollForToken(authorization)
+                    let result = try await self.accountService.pollForToken(authorization)
                     switch result {
                     case .pending:
                         continue
@@ -306,11 +398,11 @@ final class AppState: ObservableObject {
                         interval = min(interval + 5, 30)
                         continue
                     case .authorized(let token):
-                        try await self.container.account.completeSignIn(token: token.token)
+                        try await self.accountService.completeSignIn(token: token.token)
                         self.isDeviceSignInPresented = false
                         self.deviceAuthorization = nil
-                        self.accountState = self.container.account.state
-                        await self.container.licensing.refresh()
+                        self.accountState = self.accountService.state
+                        await self.licensingService.refresh()
                         return
                     }
                 } catch {
@@ -339,15 +431,15 @@ final class AppState: ObservableObject {
     func signOutAccount() {
         devicePollingTask?.cancel()
         Task {
-            await container.account.signOut()
-            await container.licensing.setSignedIn(false)
+            await accountService.signOut()
+            await licensingService.setSignedIn(false)
             accountState = .signedOut
             licensingState = .signedOut
         }
     }
 
     func refreshLicense() {
-        Task { await container.licensing.refresh() }
+        Task { await licensingService.refresh() }
     }
 
     /// Reloads persisted data and settings. Called after any structural change.
@@ -358,24 +450,24 @@ final class AppState: ObservableObject {
     }
 
     func refreshPermissions() {
-        permissionStatuses = PermissionKind.allCases.map { container.permissionProvider.status(for: $0) }
+        permissionStatuses = PermissionKind.allCases.map { permissionProvider.status(for: $0) }
     }
 
     func permissionStatus(for kind: PermissionKind) -> PermissionState {
-        container.permissionProvider.status(for: kind).state
+        permissionProvider.status(for: kind).state
     }
 
     func requestPermission(_ kind: PermissionKind) {
-        container.permissionProvider.request(kind)
+        permissionProvider.request(kind)
         refreshPermissions()
     }
 
     func openSystemSettings(for kind: PermissionKind) {
-        container.permissionProvider.openSystemSettings(for: kind)
+        permissionProvider.openSystemSettings(for: kind)
     }
 
     func openPrivacySettings() {
-        container.permissionProvider.openPrivacySettings()
+        permissionProvider.openPrivacySettings()
     }
 
     // MARK: - Settings

@@ -228,7 +228,8 @@ struct SettingsView: View {
                 .font(.caption).foregroundStyle(.secondary)
             HStack {
                 Button("Reveal Community Data") {
-                    let url = AppPaths.communityDataURL
+                    let url = state.container.dataDirectory
+                        .appendingPathComponent("community.json")
                     if !FileManager.default.fileExists(atPath: url.path) {
                         try? FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
                         try? Data("{}".utf8).write(to: url)

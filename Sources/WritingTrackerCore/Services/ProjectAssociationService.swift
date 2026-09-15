@@ -122,6 +122,78 @@ public enum AppPaths {
         resolvedDataDirectory.appendingPathComponent("community.json")
     }
 
+    // MARK: - Per-account data scopes
+
+    static let accountsFolderName = "Accounts"
+    static let legacyAdoptionMarkerFileName = ".legacy-data-adopted"
+
+    /// The database for a specific account, so signing into a different account
+    /// on the same Mac shows entirely separate data. `nil` (signed out) uses a
+    /// local scope.
+    public static func databaseURL(forAccountKey key: String?) -> URL {
+        databaseURL(forAccountKey: key, baseDirectory: dataDirectory)
+    }
+
+    static func databaseURL(forAccountKey key: String?, baseDirectory: URL) -> URL {
+        let directory = accountDataDirectory(for: key, baseDirectory: baseDirectory)
+        adoptLegacyDataIfNeeded(into: directory, baseDirectory: baseDirectory)
+        return directory.appendingPathComponent(databaseFileName)
+    }
+
+    /// The folder holding one account's database, backups, and community file.
+    public static func accountDataDirectory(for key: String?) -> URL {
+        accountDataDirectory(for: key, baseDirectory: dataDirectory)
+    }
+
+    static func accountDataDirectory(for key: String?, baseDirectory: URL) -> URL {
+        ensureDirectory(
+            baseDirectory
+                .appendingPathComponent(accountsFolderName, isDirectory: true)
+                .appendingPathComponent(sanitizedAccountKey(key), isDirectory: true)
+        )
+    }
+
+    static func sanitizedAccountKey(_ key: String?) -> String {
+        guard let key, !key.isEmpty else { return "local" }
+        return key.replacingOccurrences(of: "/", with: "_")
+    }
+
+    /// Copies data from the pre-account layout into the first account that
+    /// opens, then marks it adopted so a second account starts empty. The
+    /// original files are kept.
+    private static func adoptLegacyDataIfNeeded(into directory: URL, baseDirectory: URL) {
+        let fileManager = FileManager.default
+        let marker = baseDirectory.appendingPathComponent(legacyAdoptionMarkerFileName)
+        let legacyDatabase = baseDirectory.appendingPathComponent(databaseFileName)
+        let scopedDatabase = directory.appendingPathComponent(databaseFileName)
+
+        guard !fileManager.fileExists(atPath: marker.path),
+              !fileManager.fileExists(atPath: scopedDatabase.path),
+              fileManager.fileExists(atPath: legacyDatabase.path)
+        else {
+            return
+        }
+
+        for suffix in ["", "-wal", "-shm"] {
+            let source = URL(fileURLWithPath: legacyDatabase.path + suffix)
+            guard fileManager.fileExists(atPath: source.path) else { continue }
+            let target = URL(fileURLWithPath: scopedDatabase.path + suffix)
+            try? fileManager.removeItem(at: target)
+            try? fileManager.copyItem(at: source, to: target)
+        }
+
+        let legacyCommunity = baseDirectory.appendingPathComponent("community.json")
+        if fileManager.fileExists(atPath: legacyCommunity.path) {
+            let target = directory.appendingPathComponent("community.json")
+            if !fileManager.fileExists(atPath: target.path) {
+                try? fileManager.copyItem(at: legacyCommunity, to: target)
+            }
+        }
+
+        fileManager.createFile(atPath: marker.path, contents: Data())
+        Log.app.notice("Adopted pre-account Yakitori data into the first account scope")
+    }
+
     // MARK: - Resolution
 
     static func resolveDataDirectory(
