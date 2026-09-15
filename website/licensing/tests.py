@@ -1,15 +1,16 @@
+import json
 import time
 import uuid
 from datetime import timedelta
 
-from django.test import TestCase, override_settings
+from django.test import Client, TestCase, override_settings
 from django.utils import timezone
 
 from accounts.models import User
 from commerce import services as commerce_services
 from commerce.providers import EventKind
 from licensing import services
-from licensing.models import Installation, License, Trial
+from licensing.models import Installation, License, MachineTrial, Trial
 from licensing.signing import (
     SigningError,
     verify_authorization,
@@ -230,6 +231,51 @@ class TrialTests(TestCase):
         self.assertFalse(result["valid"])
         self.assertEqual(result["reason"], "trial_unavailable")
 
+    def test_second_trial_refused_when_machine_already_used(self):
+        machine = "HW-UUID-AAAA"
+        first = services.validate_license(
+            self.user, self.installation, machine_id=machine
+        )
+        self.assertTrue(first["valid"])
+
+        other = User.objects.create_user(email="machine2@example.com")
+        installation, _ = services.register_installation(other, uuid.uuid4())
+        second = services.validate_license(other, installation, machine_id=machine)
+
+        self.assertFalse(second["valid"])
+        self.assertEqual(second["reason"], "trial_machine_used")
+
+    def test_only_a_hash_of_the_machine_is_stored(self):
+        machine = "HW-UUID-SECRET-1234"
+        services.validate_license(self.user, self.installation, machine_id=machine)
+
+        record = MachineTrial.objects.get()
+        self.assertNotEqual(record.machine_hash, machine)
+        self.assertNotIn(machine, record.machine_hash)
+        self.assertEqual(record.machine_hash, services.machine_hash(machine))
+
+    def test_different_machines_each_get_a_trial(self):
+        self.assertTrue(
+            services.validate_license(
+                self.user, self.installation, machine_id="M-A"
+            )["valid"]
+        )
+        other = User.objects.create_user(email="machine-b@example.com")
+        installation, _ = services.register_installation(other, uuid.uuid4())
+        self.assertTrue(
+            services.validate_license(
+                other, installation, machine_id="M-B"
+            )["valid"]
+        )
+        self.assertEqual(MachineTrial.objects.count(), 2)
+
+    def test_missing_machine_id_falls_back_to_installation_guard(self):
+        result = services.validate_license(
+            self.user, self.installation, machine_id=None
+        )
+        self.assertTrue(result["valid"])
+        self.assertEqual(MachineTrial.objects.count(), 0)
+
     def test_revoked_license_does_not_fall_back_to_trial(self):
         purchase, _checkout = commerce_services.start_purchase(self.user)
         commerce_services.simulate_event(purchase, EventKind.PURCHASE_COMPLETED)
@@ -283,6 +329,46 @@ class LicensingApiTests(TestCase):
         self.assertTrue(payload["valid"])
         self.assertEqual(payload["kind"], "trial")
         self.assertGreater(payload["trial"]["days_remaining"], 0)
+
+    def test_api_refuses_second_trial_on_same_machine(self):
+        self.client.post(
+            "/v1/me/installations",
+            data=json.dumps({"installation_id": str(self.installation_id)}),
+            content_type="application/json",
+        )
+        first = self.client.post(
+            "/v1/me/license/validate",
+            data=json.dumps(
+                {
+                    "installation_id": str(self.installation_id),
+                    "machine_id": "HW-API-1",
+                }
+            ),
+            content_type="application/json",
+        )
+        self.assertTrue(first.json()["valid"])
+
+        other = User.objects.create_user(email="othermachine@example.com")
+        other_installation = uuid.uuid4()
+        second_client = Client()
+        second_client.force_login(other)
+        second_client.post(
+            "/v1/me/installations",
+            data=json.dumps({"installation_id": str(other_installation)}),
+            content_type="application/json",
+        )
+        second = second_client.post(
+            "/v1/me/license/validate",
+            data=json.dumps(
+                {
+                    "installation_id": str(other_installation),
+                    "machine_id": "HW-API-1",
+                }
+            ),
+            content_type="application/json",
+        )
+        self.assertFalse(second.json()["valid"])
+        self.assertEqual(second.json()["reason"], "trial_machine_used")
 
     def test_full_api_validation_after_purchase(self):
         purchase, _checkout = commerce_services.start_purchase(self.user)

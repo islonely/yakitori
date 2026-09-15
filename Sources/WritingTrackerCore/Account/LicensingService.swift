@@ -101,6 +101,7 @@ public final class LicensingService: @unchecked Sendable {
     private let secrets: SecretStoring
     private let configuration: PlatformConfiguration
     private let dateProvider: DateProviding
+    private let machineIdentity: MachineIdentifying
     private let lock = NSLock()
 
     private let authorizationKey = "license-authorization"
@@ -116,13 +117,15 @@ public final class LicensingService: @unchecked Sendable {
         configuration: PlatformConfiguration,
         transport: HTTPTransport,
         secrets: SecretStoring = KeychainSecretStore(),
-        dateProvider: DateProviding = SystemDateProvider()
+        dateProvider: DateProviding = SystemDateProvider(),
+        machineIdentity: MachineIdentifying = IOKitMachineIdentity()
     ) {
         self.configuration = configuration
         self.api = APIClient(configuration: configuration, transport: transport)
         self.installation = InstallationIdentity(store: secrets)
         self.secrets = secrets
         self.dateProvider = dateProvider
+        self.machineIdentity = machineIdentity
     }
 
     public var state: LicensingState {
@@ -154,10 +157,17 @@ public final class LicensingService: @unchecked Sendable {
             return
         }
 
+        var body: [String: Any] = ["installation_id": installationID.uuidString]
+        // Sent only so a trial can be limited to one per Mac; the server stores
+        // an HMAC of it, never the value itself.
+        if let machineID = machineIdentity.machineIdentifier() {
+            body["machine_id"] = machineID
+        }
+
         do {
             let response: LicenseValidation = try await api.post(
                 "/v1/me/license/validate",
-                json: ["installation_id": installationID.uuidString],
+                json: body,
                 as: LicenseValidation.self
             )
 

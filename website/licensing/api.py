@@ -109,7 +109,11 @@ def validate(request):
                 400, "invalid_installation", "installation_id must be a UUID."
             )
 
-    result = services.validate_license(request.api_user, installation)
+    result = services.validate_license(
+        request.api_user,
+        installation,
+        machine_id=body.get("machine_id"),
+    )
     if not result["valid"]:
         payload = {"valid": False, "reason": result["reason"]}
         if result.get("kind"):

@@ -19,7 +19,8 @@ let package = Package(
                 .process("Resources")
             ],
             linkerSettings: [
-                .linkedLibrary("sqlite3")
+                .linkedLibrary("sqlite3"),
+                .linkedFramework("IOKit")
             ]
         ),
         .executableTarget(

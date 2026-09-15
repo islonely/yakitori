@@ -154,3 +154,40 @@ class Trial(models.Model):
     def days_remaining(self):
         seconds = (self.ends_at - timezone.now()).total_seconds()
         return max(0, math.ceil(seconds / 86400))
+
+
+class MachineTrial(models.Model):
+    """Records that a physical Mac has consumed a free trial.
+
+    The value stored is an HMAC of the machine's hardware UUID, keyed by a
+    server-only secret. The raw UUID is never stored (or even kept), so this is
+    the minimum data needed to stop a second trial on the same machine.
+
+    This is a deliberate, trial-only exception to the "no hardware
+    fingerprinting" rule that governs *licensing*: licenses remain tied to the
+    account, not to a device.
+    """
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    machine_hash = models.CharField(max_length=64, unique=True, db_index=True)
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="machine_trials",
+    )
+    trial = models.ForeignKey(
+        Trial,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="machines",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ("-created_at",)
+
+    def __str__(self):
+        return self.machine_hash[:12]

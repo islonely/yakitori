@@ -388,7 +388,8 @@ final class LicensingServiceTests: XCTestCase {
             configuration: configuration(key: key),
             transport: transport,
             secrets: secrets,
-            dateProvider: MutableDateProvider(fixedNow)
+            dateProvider: MutableDateProvider(fixedNow),
+            machineIdentity: StaticMachineIdentity(nil)
         )
 
         await service.refresh()
@@ -416,7 +417,8 @@ final class LicensingServiceTests: XCTestCase {
             configuration: configuration(key: key),
             transport: MockTransport(routes: []),
             secrets: secrets,
-            dateProvider: MutableDateProvider(fixedNow)
+            dateProvider: MutableDateProvider(fixedNow),
+            machineIdentity: StaticMachineIdentity(nil)
         )
 
         await service.refresh()
@@ -443,7 +445,8 @@ final class LicensingServiceTests: XCTestCase {
             configuration: configuration(key: key),
             transport: MockTransport(routes: []),
             secrets: secrets,
-            dateProvider: MutableDateProvider(fixedNow)
+            dateProvider: MutableDateProvider(fixedNow),
+            machineIdentity: StaticMachineIdentity(nil)
         )
 
         await service.refresh()
@@ -473,7 +476,8 @@ final class LicensingServiceTests: XCTestCase {
             configuration: configuration(key: key),
             transport: MockTransport(routes: []),
             secrets: secrets,
-            dateProvider: MutableDateProvider(fixedNow)
+            dateProvider: MutableDateProvider(fixedNow),
+            machineIdentity: StaticMachineIdentity(nil)
         )
 
         await service.refresh()
@@ -503,7 +507,8 @@ final class LicensingServiceTests: XCTestCase {
             configuration: configuration(key: key),
             transport: transport,
             secrets: secrets,
-            dateProvider: MutableDateProvider(fixedNow)
+            dateProvider: MutableDateProvider(fixedNow),
+            machineIdentity: StaticMachineIdentity(nil)
         )
 
         await service.refresh()
@@ -537,7 +542,8 @@ final class LicensingServiceTests: XCTestCase {
             configuration: configuration(key: key),
             transport: transport,
             secrets: secrets,
-            dateProvider: MutableDateProvider(fixedNow)
+            dateProvider: MutableDateProvider(fixedNow),
+            machineIdentity: StaticMachineIdentity(nil)
         )
 
         await service.refresh()
@@ -547,6 +553,46 @@ final class LicensingServiceTests: XCTestCase {
         XCTAssertTrue(service.state.isUsable)
         XCTAssertTrue(snapshot.isTrial)
         XCTAssertGreaterThan(snapshot.daysRemaining ?? 0, 0)
+    }
+
+    func testValidationSendsMachineIdentifier() async throws {
+        let key = TestLicense.keyPair()
+        let secrets = InMemorySecretStore()
+        let installation = try InstallationIdentity(store: secrets).installationID()
+        let trialEnd = fixedNow.addingTimeInterval(14 * 86_400)
+        let token = trialToken(
+            key: key,
+            installation: installation,
+            issuedAt: fixedNow,
+            trialEnd: trialEnd
+        )
+
+        let transport = MockTransport(routes: [
+            .init(method: "POST", path: "/v1/me/license/validate", status: 200, body: TestJSON.data([
+                "valid": true,
+                "kind": "trial",
+                "authorization": token,
+                "offline_grace_days": 0,
+                "trial": ["ends_at": "2026-01-15T00:00:00Z", "days_remaining": 14],
+            ])),
+        ])
+
+        let service = LicensingService(
+            configuration: configuration(key: key),
+            transport: transport,
+            secrets: secrets,
+            dateProvider: MutableDateProvider(fixedNow),
+            machineIdentity: StaticMachineIdentity("TEST-HW-UUID")
+        )
+
+        await service.refresh()
+
+        let request = try XCTUnwrap(
+            transport.requests.first { $0.url.path.contains("license/validate") }
+        )
+        let body = try XCTUnwrap(request.body)
+        let json = try JSONSerialization.jsonObject(with: body) as? [String: Any]
+        XCTAssertEqual(json?["machine_id"] as? String, "TEST-HW-UUID")
     }
 
     func testExpiredTrialCacheIsNotUsableOffline() async {
@@ -566,7 +612,8 @@ final class LicensingServiceTests: XCTestCase {
             configuration: configuration(key: key),
             transport: MockTransport(routes: []),
             secrets: secrets,
-            dateProvider: MutableDateProvider(fixedNow)
+            dateProvider: MutableDateProvider(fixedNow),
+            machineIdentity: StaticMachineIdentity(nil)
         )
 
         await service.refresh()
@@ -603,7 +650,8 @@ final class LicensingServiceTests: XCTestCase {
             configuration: configuration(key: key),
             transport: transport,
             secrets: secrets,
-            dateProvider: clock
+            dateProvider: clock,
+            machineIdentity: StaticMachineIdentity(nil)
         )
 
         await service.refresh()
@@ -643,7 +691,8 @@ final class LicensingServiceTests: XCTestCase {
             configuration: configuration(key: key),
             transport: transport,
             secrets: secrets,
-            dateProvider: MutableDateProvider(fixedNow)
+            dateProvider: MutableDateProvider(fixedNow),
+            machineIdentity: StaticMachineIdentity(nil)
         )
 
         await service.refresh()

@@ -25,6 +25,7 @@ the checklist the platform is built against.
 | Username squatting | Charset rules, reserved names, cooldown, released-name hold, unique index |
 | Social spam | Rate limits, blocking, reporting, audit trail |
 | Leaderboard cheating | Plausibility validation, aggregation controls, documented trust limit |
+| Repeat free trials | Per-account and per-installation records, plus a server-stored HMAC of the Mac's hardware UUID (`MachineTrial`); raw UUID never stored |
 | Database compromise | Least privilege, minimal stored data, encrypted backups, externalized secrets |
 | Secret leakage | `.gitignore`, `.dockerignore`, secret scanning in CI, no secret logging |
 

@@ -4,6 +4,8 @@ Lifetime licenses, unlimited installations, and signed authorizations. Nothing
 here requires manuscript data, and no license is ever tied to a device.
 """
 
+import hashlib
+import hmac
 import logging
 from datetime import timedelta
 
@@ -14,7 +16,7 @@ from django.utils import timezone
 from audit.models import AuditEvent
 from audit.services import record
 
-from .models import Installation, License, Trial
+from .models import Installation, License, MachineTrial, Trial
 from .signing import (
     build_authorization_payload,
     build_trial_authorization_payload,
@@ -243,15 +245,30 @@ def trial_status(user):
     }
 
 
-def start_or_resume_trial(user, installation):
+def machine_hash(machine_id):
+    """HMAC a raw machine id with a server-only salt.
+
+    Only this value is ever stored, so a database leak cannot reveal a Mac's
+    hardware UUID. The raw id is not logged or persisted anywhere.
+    """
+    return hmac.new(
+        settings.MACHINE_ID_SALT.encode("utf-8"),
+        (machine_id or "").encode("utf-8"),
+        hashlib.sha256,
+    ).hexdigest()
+
+
+def start_or_resume_trial(user, installation, machine_id=None):
     """Start a trial once, or return the existing one.
 
-    Returns ``None`` when the installation has already consumed a trial, which
-    prevents restarting a trial by creating a new account on the same Mac.
+    Returns ``(trial, reason)``. ``trial`` is ``None`` when the trial is
+    refused, with ``reason`` either ``"installation_used"`` (this installation
+    already consumed one) or ``"machine_used"`` (this physical Mac already did,
+    even under a different account).
     """
     existing = trial_for(user)
     if existing is not None:
-        return existing
+        return existing, None
 
     if installation is not None and installation.trial_consumed_at is not None:
         record(
@@ -260,7 +277,19 @@ def start_or_resume_trial(user, installation):
             source="licensing",
             outcome="refused_installation_used",
         )
-        return None
+        return None, "installation_used"
+
+    hashed_machine = None
+    if machine_id:
+        hashed_machine = machine_hash(machine_id)
+        if MachineTrial.objects.filter(machine_hash=hashed_machine).exists():
+            record(
+                AuditEvent.Type.TRIAL_STARTED,
+                target=user,
+                source="licensing",
+                outcome="refused_machine_used",
+            )
+            return None, "machine_used"
 
     trial = Trial.objects.create(
         user=user,
@@ -271,13 +300,19 @@ def start_or_resume_trial(user, installation):
         installation.trial_consumed_at = timezone.now()
         installation.save(update_fields=["trial_consumed_at", "last_seen_at"])
 
+    if hashed_machine is not None:
+        MachineTrial.objects.get_or_create(
+            machine_hash=hashed_machine,
+            defaults={"user": user, "trial": trial},
+        )
+
     record(
         AuditEvent.Type.TRIAL_STARTED,
         target=user,
         source="licensing",
         days=settings.TRIAL_DAYS,
     )
-    return trial
+    return trial, None
 
 
 def _installation_error(installation):
@@ -288,7 +323,7 @@ def _installation_error(installation):
     return None
 
 
-def validate_license(user, installation):
+def validate_license(user, installation, machine_id=None):
     """Return a validation result and, when valid, a signed authorization.
 
     Resolution order:
@@ -296,7 +331,11 @@ def validate_license(user, installation):
     1. An existing license wins. A revoked/disabled license yields an invalid
        result and **never** falls back to a trial.
     2. Otherwise a one-time trial is started (or resumed). Expired or
-       already-consumed trials yield an invalid result.
+       already-consumed trials yield an invalid result. A trial is also refused
+       when the same physical Mac (``machine_id``) has already used one.
+
+    ``machine_id`` is optional; omit it to rely on the account/installation
+    guards alone.
     """
     license_obj = License.objects.filter(user=user, product=_product()).first()
 
@@ -332,9 +371,14 @@ def validate_license(user, installation):
     if error:
         return {"valid": False, "reason": error}
 
-    trial = start_or_resume_trial(user, installation)
+    trial, refusal = start_or_resume_trial(user, installation, machine_id)
     if trial is None:
-        return {"valid": False, "reason": "trial_unavailable", "kind": "trial"}
+        reason = (
+            "trial_machine_used"
+            if refusal == "machine_used"
+            else "trial_unavailable"
+        )
+        return {"valid": False, "reason": reason, "kind": "trial"}
     if not trial.is_active:
         return {"valid": False, "reason": "trial_expired", "kind": "trial"}
 

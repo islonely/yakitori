@@ -1,7 +1,17 @@
 from django.contrib import admin
 
-from .models import Installation, License, Trial
+from .models import Installation, License, MachineTrial, Trial
 from .services import set_license_status
+
+
+@admin.register(MachineTrial)
+class MachineTrialAdmin(admin.ModelAdmin):
+    list_display = ("machine_hash", "user", "trial", "created_at")
+    search_fields = ("machine_hash", "user__email")
+    readonly_fields = [field.name for field in MachineTrial._meta.fields]
+
+    def has_add_permission(self, request):
+        return False
 
 
 @admin.register(Trial)
