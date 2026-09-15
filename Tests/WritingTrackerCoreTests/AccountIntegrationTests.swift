@@ -220,6 +220,22 @@ final class LicenseVerifierTests: XCTestCase {
     }
 }
 
+final class MachineIdentityTests: XCTestCase {
+    func testDigestIsStableHexAndNotTheUUID() {
+        let uuid = "00000000-0000-0000-0000-000000000000"
+        let digest = IOKitMachineIdentity.digest(of: uuid)
+
+        XCTAssertEqual(digest.count, 64)
+        XCTAssertTrue(digest.allSatisfy(\.isHexDigit))
+        XCTAssertNotEqual(digest, uuid)
+        XCTAssertEqual(digest, IOKitMachineIdentity.digest(of: uuid))
+        XCTAssertNotEqual(
+            digest,
+            IOKitMachineIdentity.digest(of: "11111111-1111-1111-1111-111111111111")
+        )
+    }
+}
+
 final class AccountServiceTests: XCTestCase {
     private func makeConfiguration(keys: [String: Data] = [:]) -> PlatformConfiguration {
         PlatformConfiguration(

@@ -4,8 +4,6 @@ Lifetime licenses, unlimited installations, and signed authorizations. Nothing
 here requires manuscript data, and no license is ever tied to a device.
 """
 
-import hashlib
-import hmac
 import logging
 from datetime import timedelta
 
@@ -245,26 +243,15 @@ def trial_status(user):
     }
 
 
-def machine_hash(machine_id):
-    """HMAC a raw machine id with a server-only salt.
-
-    Only this value is ever stored, so a database leak cannot reveal a Mac's
-    hardware UUID. The raw id is not logged or persisted anywhere.
-    """
-    return hmac.new(
-        settings.MACHINE_ID_SALT.encode("utf-8"),
-        (machine_id or "").encode("utf-8"),
-        hashlib.sha256,
-    ).hexdigest()
-
-
 def start_or_resume_trial(user, installation, machine_id=None):
     """Start a trial once, or return the existing one.
 
-    Returns ``(trial, reason)``. ``trial`` is ``None`` when the trial is
-    refused, with ``reason`` either ``"installation_used"`` (this installation
-    already consumed one) or ``"machine_used"`` (this physical Mac already did,
-    even under a different account).
+    ``machine_id`` is the **device-computed digest** of the Mac's hardware UUID
+    (the raw UUID never reaches the server). Returns ``(trial, reason)``.
+    ``trial`` is ``None`` when the trial is refused, with ``reason`` either
+    ``"installation_used"`` (this installation already consumed one) or
+    ``"machine_used"`` (this physical Mac already did, even under a different
+    account).
     """
     existing = trial_for(user)
     if existing is not None:
@@ -279,17 +266,17 @@ def start_or_resume_trial(user, installation, machine_id=None):
         )
         return None, "installation_used"
 
-    hashed_machine = None
-    if machine_id:
-        hashed_machine = machine_hash(machine_id)
-        if MachineTrial.objects.filter(machine_hash=hashed_machine).exists():
-            record(
-                AuditEvent.Type.TRIAL_STARTED,
-                target=user,
-                source="licensing",
-                outcome="refused_machine_used",
-            )
-            return None, "machine_used"
+    machine_digest = machine_id or None
+    if machine_digest and MachineTrial.objects.filter(
+        machine_hash=machine_digest
+    ).exists():
+        record(
+            AuditEvent.Type.TRIAL_STARTED,
+            target=user,
+            source="licensing",
+            outcome="refused_machine_used",
+        )
+        return None, "machine_used"
 
     trial = Trial.objects.create(
         user=user,
@@ -300,9 +287,9 @@ def start_or_resume_trial(user, installation, machine_id=None):
         installation.trial_consumed_at = timezone.now()
         installation.save(update_fields=["trial_consumed_at", "last_seen_at"])
 
-    if hashed_machine is not None:
+    if machine_digest is not None:
         MachineTrial.objects.get_or_create(
-            machine_hash=hashed_machine,
+            machine_hash=machine_digest,
             defaults={"user": user, "trial": trial},
         )
 

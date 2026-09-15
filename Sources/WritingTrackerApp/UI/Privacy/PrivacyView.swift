@@ -45,7 +45,7 @@ struct PrivacyView: View {
                 "How long you were focused, and how long you were actively writing",
                 "The exact word count of your document, and how it changes",
                 "The projects and goals you set up",
-                "This Mac's hardware UUID, sent once to start a free trial and stored by the server only as a one-way hash (never the raw value)"
+                "This Mac's hardware UUID, hashed on this Mac and sent once to start a free trial — the raw UUID never leaves the device"
             ]
         )
     }

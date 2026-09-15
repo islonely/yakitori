@@ -29,12 +29,12 @@ The trial is deliberately account-bound so it cannot be restarted.
   A different account on the same Mac is therefore **not** given a second trial.
 - The Mac is also recorded, so reinstalling or creating a new account on the
   same machine cannot produce a second trial. The app reads `IOPlatformUUID`
-  (IOKit), sends it over TLS when starting a trial, and the server stores only
-  `HMAC-SHA256(MACHINE_ID_SALT, uuid)` in `MachineTrial`; the raw UUID is never
-  stored or logged. This is a deliberate, **trial-only** exception to the
-  "no hardware fingerprinting" rule — licenses remain tied to the account, not
-  to a device. (Apple's DeviceCheck is a possible future, more
-  privacy-preserving replacement.)
+  (IOKit) and **hashes it on the device** (SHA-256 over a fixed namespace
+  prefix); only that digest is sent, and the server stores it verbatim in
+  `MachineTrial`. The raw UUID never leaves the Mac. This is a deliberate,
+  **trial-only** exception to the "no hardware fingerprinting" rule — licenses
+  remain tied to the account, not to a device. (Apple's DeviceCheck is a
+  possible future, more privacy-preserving replacement.)
 - A revoked or disabled license **never** falls back to a trial, so a refunded
   purchase cannot be replayed as a free trial.
 - The trial is granted through the same signed authorization mechanism, with

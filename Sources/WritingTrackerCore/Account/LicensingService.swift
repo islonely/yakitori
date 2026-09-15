@@ -158,10 +158,10 @@ public final class LicensingService: @unchecked Sendable {
         }
 
         var body: [String: Any] = ["installation_id": installationID.uuidString]
-        // Sent only so a trial can be limited to one per Mac; the server stores
-        // an HMAC of it, never the value itself.
-        if let machineID = machineIdentity.machineIdentifier() {
-            body["machine_id"] = machineID
+        // A device-computed digest of the hardware UUID, sent only so a trial
+        // can be limited to one per Mac. The raw UUID never leaves the device.
+        if let machineDigest = machineIdentity.machineDigest() {
+            body["machine_id"] = machineDigest
         }
 
         do {

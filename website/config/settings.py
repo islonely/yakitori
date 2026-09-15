@@ -285,11 +285,6 @@ TRIAL_DAYS = _env_int("TRIAL_DAYS", 14)
 # of TRIAL_DAYS days. Useful for exercising expiry without waiting 14 days.
 TRIAL_SECONDS = _env_int("TRIAL_SECONDS", 0)
 
-# Secret salt used to hash a Mac's hardware UUID before storing it, for the
-# trial anti-abuse record. The raw UUID is never stored. Defaults to SECRET_KEY
-# so it works out of the box; set a dedicated value in production.
-MACHINE_ID_SALT = _env("MACHINE_ID_SALT", "") or SECRET_KEY
-
 
 # ---------------------------------------------------------------------------
 # Social / leaderboards

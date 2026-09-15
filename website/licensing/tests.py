@@ -245,14 +245,13 @@ class TrialTests(TestCase):
         self.assertFalse(second["valid"])
         self.assertEqual(second["reason"], "trial_machine_used")
 
-    def test_only_a_hash_of_the_machine_is_stored(self):
-        machine = "HW-UUID-SECRET-1234"
-        services.validate_license(self.user, self.installation, machine_id=machine)
+    def test_only_the_device_digest_is_stored(self):
+        # The server never sees the UUID; it stores the digest the device sent.
+        digest = "a" * 64
+        services.validate_license(self.user, self.installation, machine_id=digest)
 
         record = MachineTrial.objects.get()
-        self.assertNotEqual(record.machine_hash, machine)
-        self.assertNotIn(machine, record.machine_hash)
-        self.assertEqual(record.machine_hash, services.machine_hash(machine))
+        self.assertEqual(record.machine_hash, digest)
 
     def test_different_machines_each_get_a_trial(self):
         self.assertTrue(

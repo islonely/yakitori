@@ -159,9 +159,10 @@ class Trial(models.Model):
 class MachineTrial(models.Model):
     """Records that a physical Mac has consumed a free trial.
 
-    The value stored is an HMAC of the machine's hardware UUID, keyed by a
-    server-only secret. The raw UUID is never stored (or even kept), so this is
-    the minimum data needed to stop a second trial on the same machine.
+    The value stored is a **device-computed** SHA-256 digest of the machine's
+    hardware UUID. The app hashes the UUID on the Mac, so the raw value never
+    reaches the server at all; this table holds the minimum data needed to stop
+    a second trial on the same machine.
 
     This is a deliberate, trial-only exception to the "no hardware
     fingerprinting" rule that governs *licensing*: licenses remain tied to the
