@@ -570,9 +570,59 @@ final class LicensingServiceTests: XCTestCase {
         )
 
         await service.refresh()
-        guard case .unavailable = service.state else {
-            return XCTFail("expected unavailable, got \(service.state)")
+        // An expired trial is deterministic, not merely "offline": the cached
+        // authorization carries a hard entitlement end.
+        XCTAssertEqual(service.state, .invalid(reason: "trial_expired"))
+        XCTAssertFalse(service.state.isUsable)
+    }
+
+    func testTrialExpiresWhenTheClockPassesItsEnd() async throws {
+        let key = TestLicense.keyPair()
+        let secrets = InMemorySecretStore()
+        let installation = try InstallationIdentity(store: secrets).installationID()
+        let trialEnd = fixedNow.addingTimeInterval(10)
+        let token = trialToken(
+            key: key,
+            installation: installation,
+            issuedAt: fixedNow,
+            trialEnd: trialEnd
+        )
+
+        let transport = MockTransport(routes: [
+            .init(method: "POST", path: "/v1/me/license/validate", status: 200, body: TestJSON.data([
+                "valid": true,
+                "kind": "trial",
+                "authorization": token,
+                "offline_grace_days": 0,
+                "trial": ["ends_at": "2026-01-15T00:00:00Z", "days_remaining": 1],
+            ])),
+        ])
+
+        let clock = MutableDateProvider(fixedNow)
+        let service = LicensingService(
+            configuration: configuration(key: key),
+            transport: transport,
+            secrets: secrets,
+            dateProvider: clock
+        )
+
+        await service.refresh()
+        guard case .trial = service.state else {
+            return XCTFail("expected trial, got \(service.state)")
         }
+
+        // The app schedules its next check exactly at the trial end.
+        XCTAssertEqual(
+            service.nextEvaluationDate(now: fixedNow)?.timeIntervalSince1970 ?? 0,
+            trialEnd.timeIntervalSince1970,
+            accuracy: 1
+        )
+
+        // Time passes; the server is now unreachable.
+        clock.advance(by: 11)
+        await service.refresh()
+
+        XCTAssertEqual(service.state, .invalid(reason: "trial_expired"))
         XCTAssertFalse(service.state.isUsable)
     }
 

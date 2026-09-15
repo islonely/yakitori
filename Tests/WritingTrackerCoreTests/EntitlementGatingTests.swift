@@ -27,6 +27,8 @@ final class EntitlementGatingTests: XCTestCase {
         XCTAssertTrue(engine.snapshot().isSessionOpen)
     }
 
+    /// The trial-expiry path: LicensingService reports the trial ended, the app
+    /// sets tracking to disallowed, and the engine stops the running session.
     func testDisallowingTrackingEndsAnOpenSession() throws {
         let database = try TestSupport.makeDatabase()
         let engine = TrackingEngine(

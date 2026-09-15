@@ -39,6 +39,8 @@ final class AppState: ObservableObject {
 
     private var isStarted = false
     private var devicePollingTask: Task<Void, Never>?
+    private var licenseTimerTask: Task<Void, Never>?
+    private var lastLicenseRefresh = Date.distantPast
     private let globalHotkey = GlobalHotkey()
 
     private init() {
@@ -115,12 +117,24 @@ final class AppState: ObservableObject {
             Task { @MainActor in
                 self?.container.permissionProvider.refresh()
                 self?.refreshPermissions()
+                self?.refreshLicenseIfStale()
             }
+        }
+
+        // A trial can end while the Mac is asleep; the scheduled timer does not
+        // fire during sleep, so re-check on wake as well.
+        NSWorkspace.shared.notificationCenter.addObserver(
+            forName: NSWorkspace.didWakeNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor in self?.refreshLicenseIfStale() }
         }
     }
 
     func shutdown() {
         devicePollingTask?.cancel()
+        licenseTimerTask?.cancel()
         container.trackingEngine.endActiveSession()
         container.trackingEngine.stop()
     }
@@ -135,6 +149,7 @@ final class AppState: ObservableObject {
             Task { @MainActor in
                 self?.licensingState = state
                 self?.applyEntitlement(state)
+                self?.scheduleEntitlementEvaluation()
             }
         }
         accountState = container.account.state
@@ -149,7 +164,58 @@ final class AppState: ObservableObject {
     /// Recording is the only thing gated by the entitlement. Everything the user
     /// has already written remains viewable and exportable.
     private func applyEntitlement(_ state: LicensingState) {
+        // A transient ".checking" happens on every revalidation; it must not
+        // tear down an active session. The previous gate stands until we have a
+        // definitive answer.
+        if state.isChecking { return }
         container.trackingEngine.setTrackingAllowed(state.isUsable)
+    }
+
+    /// Refreshes the entitlement when it is next due — critically, at the exact
+    /// moment a trial ends, so a running session is stopped even if the app
+    /// never contacts the server again.
+    private func scheduleEntitlementEvaluation() {
+        licenseTimerTask?.cancel()
+        licenseTimerTask = nil
+
+        guard licensingState.isUsable else { return }
+
+        let now = Date()
+        let delay: TimeInterval
+        if let next = container.licensing.nextEvaluationDate(now: now) {
+            delay = max(30, next.timeIntervalSince(now) + 0.5)
+        } else {
+            // Offline grace with no fixed end: retry periodically.
+            delay = 30 * 60
+        }
+
+        licenseTimerTask = Task { [weak self] in
+            try? await Task.sleep(nanoseconds: UInt64(delay) * 1_000_000_000)
+            guard !Task.isCancelled else { return }
+            await self?.container.licensing.refresh()
+        }
+    }
+
+    /// Re-check when the app becomes active or the Mac wakes from sleep, in
+    /// case the scheduled evaluation was missed while suspended.
+    private func refreshLicenseIfStale() {
+        let now = Date()
+        guard now.timeIntervalSince(lastLicenseRefresh) > 60 else { return }
+        guard isSignedIn else { return }
+        lastLicenseRefresh = now
+        Task { await container.licensing.refresh() }
+    }
+
+    /// True when the signed-in user has no active license or trial, so the
+    /// read-only banner should show.
+    var entitlementBannerVisible: Bool {
+        isSignedIn && !licensingState.isUsable && !licensingState.isChecking
+    }
+
+    /// Recording is allowed while entitled, and not torn down during a
+    /// transient revalidation.
+    var canRecordNewSessions: Bool {
+        licensingState.isUsable || licensingState.isChecking
     }
 
     var entitlementMessage: String {
@@ -366,7 +432,7 @@ final class AppState: ObservableObject {
     // MARK: - Tracking controls
 
     func startManualSession(projectID: String?, type: SessionType) {
-        guard licensingState.isUsable else {
+        guard canRecordNewSessions else {
             alertMessage = entitlementMessage
             return
         }

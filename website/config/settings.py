@@ -281,6 +281,9 @@ LICENSE_OFFLINE_GRACE_DAYS = _env_int("LICENSE_OFFLINE_GRACE_DAYS", 30)
 # Free trial. The trial requires an account so it cannot be restarted, and it
 # is refused if the same installation has already consumed one.
 TRIAL_DAYS = _env_int("TRIAL_DAYS", 14)
+# Test/tuning override: when non-zero, the trial lasts this many seconds instead
+# of TRIAL_DAYS days. Useful for exercising expiry without waiting 14 days.
+TRIAL_SECONDS = _env_int("TRIAL_SECONDS", 0)
 
 
 # ---------------------------------------------------------------------------

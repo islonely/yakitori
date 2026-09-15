@@ -14,6 +14,8 @@ public struct LicenseSnapshot: Equatable, Sendable {
     public let entitlementExpiresAt: Date?
     /// The offline grace deadline. Lifetime licenses have no expiry.
     public let offlineGraceUntil: Date?
+    /// When the authorization should next be checked against the server.
+    public let revalidateAfter: Date?
     /// True when this snapshot came from a cached authorization, not a server check.
     public let verifiedOffline: Bool
 
@@ -24,6 +26,7 @@ public struct LicenseSnapshot: Equatable, Sendable {
         status: String,
         entitlementExpiresAt: Date? = nil,
         offlineGraceUntil: Date? = nil,
+        revalidateAfter: Date? = nil,
         verifiedOffline: Bool = false
     ) {
         self.kind = kind
@@ -32,6 +35,7 @@ public struct LicenseSnapshot: Equatable, Sendable {
         self.status = status
         self.entitlementExpiresAt = entitlementExpiresAt
         self.offlineGraceUntil = offlineGraceUntil
+        self.revalidateAfter = revalidateAfter
         self.verifiedOffline = verifiedOffline
     }
 
@@ -62,6 +66,13 @@ public enum LicensingState: Equatable {
         }
     }
 
+    /// A transient validation in progress. Callers should keep the previous
+    /// gate rather than treating this as "not entitled".
+    public var isChecking: Bool {
+        if case .checking = self { return true }
+        return false
+    }
+
     public var snapshot: LicenseSnapshot? {
         switch self {
         case .active(let value), .trial(let value), .grace(let value): return value
@@ -73,6 +84,9 @@ public enum LicensingState: Equatable {
 public enum CachedEvaluation: Equatable {
     case none
     case clockAnomaly
+    /// The cached authorization verified, but its entitlement has ended (a
+    /// trial that ran out). Distinct from `none`, which means "no cache".
+    case expired(reason: String)
     case snapshot(LicenseSnapshot)
 }
 
@@ -199,6 +213,7 @@ public final class LicensingService: @unchecked Sendable {
             status: response?.license?.status ?? claims?.status ?? "active",
             entitlementExpiresAt: claims?.entitlementExpiresAt,
             offlineGraceUntil: claims?.expiresAt,
+            revalidateAfter: claims?.revalidateAfter,
             verifiedOffline: verifiedOffline
         )
     }
@@ -211,6 +226,8 @@ public final class LicensingService: @unchecked Sendable {
             } else {
                 setState(.grace(snapshot))
             }
+        case .expired(let reason):
+            setState(.invalid(reason: reason))
         case .clockAnomaly:
             setState(.clockAnomaly)
         case .none:
@@ -241,10 +258,16 @@ public final class LicensingService: @unchecked Sendable {
         let kind: LicenseKind = claims.licenseType == "trial" ? .trial : .license
 
         if let entitlementEnd = claims.entitlementExpiresAt {
-            // Trial: the entitlement must still be running.
-            guard now <= entitlementEnd else { return .none }
+            // Trial: the entitlement must still be running. Once it has passed,
+            // this is a definitive expiry (not merely "offline"), so the app can
+            // lock and stop any running session without contacting the server.
+            guard now <= entitlementEnd else {
+                return .expired(reason: "trial_expired")
+            }
         } else {
-            // Lifetime: bounded only by the offline grace deadline.
+            // Lifetime: bounded only by the offline grace deadline. Past it we
+            // stay uncertain (the server may still consider the license valid),
+            // so this is an "unavailable/offline" case, not a revocation.
             guard now <= claims.expiresAt else { return .none }
         }
 
@@ -256,9 +279,29 @@ public final class LicensingService: @unchecked Sendable {
                 status: claims.status,
                 entitlementExpiresAt: claims.entitlementExpiresAt,
                 offlineGraceUntil: claims.expiresAt,
+                revalidateAfter: claims.revalidateAfter,
                 verifiedOffline: true
             )
         )
+    }
+
+    /// When the app should next re-check entitlement with the server, or `nil`
+    /// when there is nothing to schedule (signed out or definitively invalid).
+    ///
+    /// For a trial this is the trial end, so a running session is stopped
+    /// promptly even if the app never talks to the server again.
+    public func nextEvaluationDate(now: Date? = nil) -> Date? {
+        let reference = now ?? dateProvider.now
+        guard let snapshot = state.snapshot else { return nil }
+
+        var candidates: [Date] = []
+        if let revalidate = snapshot.revalidateAfter, revalidate > reference {
+            candidates.append(revalidate)
+        }
+        if let entitlementEnd = snapshot.entitlementExpiresAt, entitlementEnd > reference {
+            candidates.append(entitlementEnd)
+        }
+        return candidates.min()
     }
 
     public func clearCache() {

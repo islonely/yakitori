@@ -38,6 +38,15 @@ The trial is deliberately account-bound so it cannot be restarted.
 The app gates only **recording of new sessions**. Everything already written
 remains viewable and exportable, and no local data is ever hidden or deleted.
 
+When the trial ends while a session is running, the app stops that session. The
+client schedules its next entitlement check for the exact trial end (from the
+signed `ent_exp`), and re-checks on app activation and on wake from sleep, so an
+open session cannot outlive the trial. An expired cached trial is treated as a
+definitive expiry (`trial_expired`), not as a network problem.
+
+For tests, `TRIAL_SECONDS` (non-zero) runs sub-day trials so expiry can be
+observed without waiting 14 days. It is a test/tuning override and defaults to 0.
+
 ## Commerce
 
 - `PaymentProvider` is the only seam the rest of the platform sees:

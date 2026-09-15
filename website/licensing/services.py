@@ -214,6 +214,14 @@ def find_installation(user, installation_id):
 # ---------------------------------------------------------------------------
 
 
+def trial_duration():
+    """How long a new trial lasts. `TRIAL_SECONDS` overrides days for tests."""
+    seconds = getattr(settings, "TRIAL_SECONDS", 0)
+    if seconds:
+        return timedelta(seconds=seconds)
+    return timedelta(days=settings.TRIAL_DAYS)
+
+
 def trial_for(user):
     return Trial.objects.filter(user=user).first()
 
@@ -256,7 +264,7 @@ def start_or_resume_trial(user, installation):
 
     trial = Trial.objects.create(
         user=user,
-        ends_at=timezone.now() + timedelta(days=settings.TRIAL_DAYS),
+        ends_at=timezone.now() + trial_duration(),
         installation_uuid=installation.installation_id if installation else None,
     )
     if installation is not None:

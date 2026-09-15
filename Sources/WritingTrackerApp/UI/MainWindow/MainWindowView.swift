@@ -87,7 +87,7 @@ struct MainWindowView: View {
 
     private var detail: some View {
         VStack(spacing: 0) {
-            if state.isSignedIn && !state.licensingState.isUsable {
+            if state.entitlementBannerVisible {
                 entitlementBanner
             }
             sectionContent

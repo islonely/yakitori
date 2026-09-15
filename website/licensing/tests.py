@@ -1,3 +1,4 @@
+import time
 import uuid
 from datetime import timedelta
 
@@ -193,6 +194,20 @@ class TrialTests(TestCase):
         trial.refresh_from_db()
         self.assertLessEqual(trial.days_remaining, 2)
         self.assertEqual(Trial.objects.count(), 1)
+
+    @override_settings(TRIAL_SECONDS=1)
+    def test_trial_expires_once_its_duration_passes(self):
+        # A short trial so we can observe the real transition, not just a
+        # hand-constructed past end date.
+        first = services.validate_license(self.user, self.installation)
+        self.assertTrue(first["valid"])
+        self.assertEqual(first["kind"], "trial")
+
+        time.sleep(1.1)
+
+        second = services.validate_license(self.user, self.installation)
+        self.assertFalse(second["valid"])
+        self.assertEqual(second["reason"], "trial_expired")
 
     def test_expired_trial_is_invalid(self):
         Trial.objects.create(
