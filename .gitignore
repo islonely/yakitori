@@ -48,9 +48,6 @@ website/media/
 # Environment / secrets
 .env
 .env.*
-# The example file is meant to be committed (real .env files are not).
-!.env.example
-!**/.env.example
 *.p12
 *.cer
 *.mobileprovision
