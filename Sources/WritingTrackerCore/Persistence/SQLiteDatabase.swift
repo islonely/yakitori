@@ -44,9 +44,21 @@ public final class SQLiteDatabase: Database, @unchecked Sendable {
         sqlite3_busy_timeout(db, 5_000)
         try execute("PRAGMA foreign_keys = ON;")
         if path != ":memory:" {
-            try execute("PRAGMA journal_mode = WAL;")
-            try execute("PRAGMA synchronous = NORMAL;")
+            // Write-ahead logging uses sidecar files that iCloud Drive syncs
+            // independently of the database, which can corrupt it. On a cloud
+            // path we use a single-file, fully-synchronous journal instead.
+            if Self.isCloudBackedPath(path) {
+                try execute("PRAGMA journal_mode = DELETE;")
+                try execute("PRAGMA synchronous = FULL;")
+            } else {
+                try execute("PRAGMA journal_mode = WAL;")
+                try execute("PRAGMA synchronous = NORMAL;")
+            }
         }
+    }
+
+    static func isCloudBackedPath(_ path: String) -> Bool {
+        path.contains("com~apple~CloudDocs") || path.contains("Mobile Documents")
     }
 
     deinit {

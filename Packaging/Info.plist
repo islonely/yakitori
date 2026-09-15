@@ -37,5 +37,9 @@
     <string>http://localhost:8000</string>
     <key>YakitoriLicensePublicKeys</key>
     <string>dev-1=yIVNZcgsOIueUc3v7xySdD_xNWuQgr0s3UQt6fopni0</string>
+    <!-- Store data in iCloud Drive so it syncs between Macs. Set false to keep
+         everything in ~/Library/Application Support/Yakitori. -->
+    <key>YakitoriUseICloudDrive</key>
+    <true/>
 </dict>
 </plist>

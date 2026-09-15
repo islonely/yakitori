@@ -120,8 +120,15 @@ struct PrivacyView: View {
     private var dataSection: some View {
         VStack(alignment: .leading, spacing: 10) {
             SectionHeader(title: "Where your data lives")
-            Text("Your statistics are stored in a local database on this Mac.")
+            Text(AppPaths.isICloudBacked
+                 ? "Your statistics are stored in iCloud Drive so they sync between your Macs."
+                 : "Your statistics are stored in a local database on this Mac.")
                 .foregroundStyle(.secondary)
+            if AppPaths.isICloudBacked {
+                Text("Use one Mac at a time: iCloud syncs whole files, so simultaneous edits on two Macs can conflict.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
             Text(verbatim: AppPaths.databaseURL.path)
                 .font(.system(.caption, design: .monospaced))
                 .textSelection(.enabled)

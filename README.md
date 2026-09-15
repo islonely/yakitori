@@ -265,6 +265,11 @@ export, backup, and destructive-operation safety.
   trial** or attach a lifetime license. Once entitled, tracking works fully
   offline. Recording new sessions requires an active license or trial; existing
   data always stays viewable and exportable, and nothing local is deleted.
-- Cloud sync of writing data, widgets, and AI analysis are intentionally not
-  implemented. Writing data is never uploaded; only deliberately public
-  aggregate numbers ever can be.
+- Data is stored in **iCloud Drive** when it is available so statistics sync
+  between your Macs; otherwise it stays in
+  `~/Library/Application Support/Yakitori`. Writing data is never sent to
+  Yakitori's servers — only iCloud (Apple) carries it between machines. Because
+  iCloud syncs whole files, use **one Mac at a time**; simultaneous edits on two
+  Macs can create conflicting copies. Disable with `YakitoriUseICloudDrive=false`
+  in the app's `Info.plist` (or `YAKITORI_USE_ICLOUD=0`).
+- CloudKit-style record-level sync, widgets, and AI analysis are not implemented.
