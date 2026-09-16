@@ -44,16 +44,6 @@ struct MainWindowView: View {
                 .environmentObject(state)
         }
         .preferredColorScheme(state.settings.appearance.colorScheme)
-        .onAppear {
-            // Show the dashboard like a normal app: dock icon, app menu bar.
-            NSApp.setActivationPolicy(.regular)
-            NSApp.activate(ignoringOtherApps: true)
-        }
-        .onDisappear {
-            // When the dashboard closes, return to a pure menu bar utility.
-            // Tracking continues because the process stays alive.
-            NSApp.setActivationPolicy(.accessory)
-        }
         .alert("Yakitori", isPresented: Binding(
             get: { state.alertMessage != nil },
             set: { if !$0 { state.alertMessage = nil } }

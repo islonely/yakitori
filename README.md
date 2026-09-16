@@ -118,11 +118,17 @@ swift test
 # Build a launchable .app bundle (recommended for permissions/login item)
 ./Scripts/build-app.sh release
 open dist/Yakitori.app
+
+# Or install it into /Applications for normal-app behavior
+./Scripts/install-app.sh
+open /Applications/Yakitori.app
 ```
 
-Yakitori is a menu bar utility (`LSUIElement`), so it has no Dock icon until the
-dashboard is open. Click the flame icon in the menu bar to open the popover, then
-**Dashboard**.
+Yakitori is a **normal app**: it has a Dock icon, appears in the app switcher,
+and — once installed in `/Applications` — is discoverable in Spotlight and
+Launchpad. It also keeps a **menu bar extra** (the flame icon) for quick
+start/stop. Closing the window does not quit the app; clicking the Dock icon
+brings the dashboard back.
 
 ### App icon
 
@@ -139,11 +145,14 @@ Replace `Packaging/Yakitori-Source.png` with your own 1024x1024 artwork and
 re-run. If the source PNG is missing, a programmatic placeholder is rendered.
 `CFBundleIconFile` in `Packaging/Info.plist` names the resource.
 
-The database lives at:
+Each account has its own database, under the app's data directory:
 
 ```
-~/Library/Application Support/Yakitori/Yakitori.sqlite
+~/Library/Mobile Documents/com~apple~CloudDocs/Yakitori/Accounts/<account-id>/Yakitori.sqlite
 ```
+
+or, if iCloud Drive is unavailable/disabled,
+`~/Library/Application Support/Yakitori/Accounts/<account-id>/Yakitori.sqlite`.
 
 Backups are written to `.../Yakitori/Backups/`.
 

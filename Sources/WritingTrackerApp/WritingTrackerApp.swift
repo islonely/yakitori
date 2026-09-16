@@ -21,7 +21,10 @@ struct YakitoriApp: App {
         }
         .menuBarExtraStyle(.window)
 
-        Window("Yakitori", id: "dashboard") {
+        // WindowGroup (not Window) so the app behaves like a normal app: it has
+        // a Dock icon, appears in Spotlight/Launchpad when installed, and
+        // reopening from the Dock restores the window.
+        WindowGroup("Yakitori", id: "dashboard") {
             Group {
                 if !state.accountLoaded {
                     SessionLoadingView()
@@ -43,13 +46,17 @@ struct YakitoriApp: App {
                     NSApplication.shared.orderFrontStandardAboutPanel(nil)
                 }
             }
+            // Single-window app: no File > New Window.
+            CommandGroup(replacing: .newItem) {}
         }
     }
 }
 
 final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
-        NSApp.setActivationPolicy(.accessory)
+        // A normal app: Dock icon, Spotlight/Launchpad discovery, menu bar extra
+        // still available.
+        NSApp.setActivationPolicy(.regular)
         UNUserNotificationCenter.current().delegate = self
 
         // Headless diagnostic mode: `Yakitori --diagnostics [--probe-word]`
@@ -77,6 +84,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
         // Closing the dashboard must not stop background tracking.
         false
+    }
+
+    func applicationShouldHandleReopen(
+        _ sender: NSApplication,
+        hasVisibleWindows flag: Bool
+    ) -> Bool {
+        // Clicking the Dock icon brings the dashboard back.
+        NSApp.activate(ignoringOtherApps: true)
+        return true
     }
 
     // Allow banners while the app is frontmost.
