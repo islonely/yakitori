@@ -701,6 +701,52 @@ final class LicensingServiceTests: XCTestCase {
         XCTAssertFalse(service.state.isUsable)
     }
 
+    func testUnauthorizedValidationReportsSessionExpired() async {
+        let key = TestLicense.keyPair()
+        let secrets = InMemorySecretStore()
+        _ = try? InstallationIdentity(store: secrets).installationID()
+
+        let transport = MockTransport(routes: [
+            .init(method: "POST", path: "/v1/me/license/validate", status: 401, body: TestJSON.data([
+                "error": ["code": "unauthorized", "message": "Authentication required."],
+            ])),
+        ])
+
+        let service = LicensingService(
+            configuration: configuration(key: key),
+            transport: transport,
+            secrets: secrets,
+            dateProvider: MutableDateProvider(fixedNow),
+            machineIdentity: StaticMachineIdentity(nil)
+        )
+
+        await service.refresh()
+        // A rejected token is a session problem, not an offline one.
+        XCTAssertEqual(service.state, .invalid(reason: "session_expired"))
+        XCTAssertFalse(service.state.isUsable)
+    }
+
+    func testServerErrorWithoutCacheReportsServerProblem() async {
+        let key = TestLicense.keyPair()
+        let secrets = InMemorySecretStore()
+        _ = try? InstallationIdentity(store: secrets).installationID()
+
+        let transport = MockTransport(routes: [
+            .init(method: "POST", path: "/v1/me/license/validate", status: 500, body: Data("{}".utf8)),
+        ])
+
+        let service = LicensingService(
+            configuration: configuration(key: key),
+            transport: transport,
+            secrets: secrets,
+            dateProvider: MutableDateProvider(fixedNow),
+            machineIdentity: StaticMachineIdentity(nil)
+        )
+
+        await service.refresh()
+        XCTAssertEqual(service.state, .unavailable(reason: "server_error"))
+    }
+
     func testServerReportedExpiredTrialIsInvalid() async {
         let key = TestLicense.keyPair()
         let secrets = InMemorySecretStore()

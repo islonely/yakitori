@@ -202,9 +202,17 @@ public final class LicensingService: @unchecked Sendable {
                 setState(.invalid(reason: response.reason ?? "not_valid"))
             }
         } catch let error as APIError where error.isNetworkFailure {
-            applyOfflineFallback()
+            applyCacheFallback(reason: "offline")
+        } catch let error as APIError where error.statusCode == 401 || error.statusCode == 403 {
+            // The stored API token is no longer valid (revoked, expired, or the
+            // account was removed). This is not an offline condition; the app
+            // should sign out and ask the user to sign in again.
+            clearCache()
+            setState(.invalid(reason: "session_expired"))
         } catch {
-            applyOfflineFallback()
+            // A reachable server returned an error. Keep any usable cache;
+            // otherwise report a server problem rather than "offline".
+            applyCacheFallback(reason: "server_error")
         }
     }
 
@@ -228,7 +236,9 @@ public final class LicensingService: @unchecked Sendable {
         )
     }
 
-    private func applyOfflineFallback() {
+    /// Falls back to the cached authorization. `reason` is used only when there
+    /// is no usable cache (for example `"offline"` or `"server_error"`).
+    private func applyCacheFallback(reason: String) {
         switch evaluateCached() {
         case .snapshot(let snapshot):
             if snapshot.kind == .trial {
@@ -241,7 +251,7 @@ public final class LicensingService: @unchecked Sendable {
         case .clockAnomaly:
             setState(.clockAnomaly)
         case .none:
-            setState(.unavailable(reason: "offline"))
+            setState(.unavailable(reason: reason))
         }
     }
 

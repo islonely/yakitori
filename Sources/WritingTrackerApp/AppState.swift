@@ -233,6 +233,13 @@ final class AppState: ObservableObject {
                 self?.licensingState = state
                 self?.applyEntitlement(state)
                 self?.scheduleEntitlementEvaluation()
+
+                // The token was rejected (expired, revoked, or the account was
+                // removed). Sign out so the user is asked to sign in again,
+                // rather than being told to check their connection.
+                if state == .invalid(reason: "session_expired") {
+                    await self?.accountService.signOut()
+                }
             }
         }
         accountState = accountService.state
@@ -309,8 +316,12 @@ final class AppState: ObservableObject {
             return "Your 14-day free trial has ended. Buy a lifetime license to keep tracking new sessions."
         case .invalid(let reason) where reason == "trial_unavailable":
             return "This Mac has already used its free trial. Buy a lifetime license to keep tracking."
+        case .invalid(let reason) where reason == "session_expired":
+            return "Your session expired. Please sign in again."
         case .invalid:
             return "Your license is not active. Open Account to review it."
+        case .unavailable(let reason) where reason != "offline":
+            return "The licensing server had a problem. Please try again shortly."
         case .unavailable:
             return "Connect to the internet once to validate your license or start the free trial."
         case .clockAnomaly:
