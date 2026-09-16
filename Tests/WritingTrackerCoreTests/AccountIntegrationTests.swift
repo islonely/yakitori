@@ -306,6 +306,17 @@ final class AccountServiceTests: XCTestCase {
         XCTAssertTrue(service.isSignedIn)
         XCTAssertEqual(try secrets.string(for: "api-token"), "api-token-value")
         XCTAssertNotNil(try secrets.string(for: "installation-id"))
+        // The installation must be registered as part of sign-in, before the
+        // license is validated (which is what starts a trial).
+        let installationIndex = try XCTUnwrap(
+            transport.requests.firstIndex {
+                $0.method == "POST" && $0.url.path.contains("/v1/me/installations")
+            }
+        )
+        let meIndex = try XCTUnwrap(
+            transport.requests.firstIndex { $0.url.path.hasSuffix("/v1/me") && $0.method == "GET" }
+        )
+        XCTAssertLessThan(meIndex, installationIndex)
 
         await service.signOut()
         XCTAssertFalse(service.isSignedIn)

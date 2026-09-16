@@ -21,9 +21,13 @@ Two apps, one concern: **proving ownership without tying it to a device**.
 
 The trial is deliberately account-bound so it cannot be restarted.
 
-- The trial starts on the **first successful license validation** by a
-  signed-in account (i.e. the first time the app checks in), and lasts
-  `TRIAL_DAYS` (14 by default).
+- The trial starts automatically on the **first successful license validation**
+  by a signed-in account — there is no separate "start trial" button. In the app
+  this happens right after you approve the device sign-in and the installation
+  registers; creating an account on the website alone does **not** start it.
+- The clock is server-side: `ends_at = now + TRIAL_DAYS` (14 by default) at that
+  first validation, and it never restarts. The app is always signed in and
+  installation-registered before it validates, so the trial starts reliably.
 - One trial per account (`Trial` is one-to-one with the user), and the
   installation that consumed a trial is recorded (`Installation.trial_consumed_at`).
   A different account on the same Mac is therefore **not** given a second trial.

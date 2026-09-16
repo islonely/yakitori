@@ -70,8 +70,11 @@ public final class AccountService: @unchecked Sendable {
         api.authToken = token
         do {
             let response: MeResponse = try await api.get("/v1/me", as: MeResponse.self)
-            setState(.signedIn(response.user))
+            // Register before publishing the signed-in state: observers
+            // immediately validate the license, and a missing installation
+            // would suppress the trial.
             await ensureInstallationRegistered()
+            setState(.signedIn(response.user))
             return true
         } catch {
             try? secrets.remove(tokenKey)
@@ -119,8 +122,9 @@ public final class AccountService: @unchecked Sendable {
         try secrets.set(token, for: tokenKey)
         api.authToken = token
         let response: MeResponse = try await api.get("/v1/me", as: MeResponse.self)
-        setState(.signedIn(response.user))
+        // Register before publishing the signed-in state (see restoreSession).
         await ensureInstallationRegistered()
+        setState(.signedIn(response.user))
     }
 
     /// Registers this installation. Best-effort: a failure does not sign out.

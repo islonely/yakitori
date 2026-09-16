@@ -351,7 +351,12 @@ final class AppState: ObservableObject {
         case .signedIn(let user):
             // Loading a different account's data is the whole point here.
             activateDataScope(for: user.id)
-            Task { await licensingService.refresh() }
+            Task {
+                // Belt and braces: ensure the installation exists before the
+                // first validation, which is what starts the free trial.
+                await accountService.ensureInstallationRegistered()
+                await licensingService.refresh()
+            }
         case .signedOut:
             activateDataScope(for: nil)
             Task { await licensingService.setSignedIn(false) }
